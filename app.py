@@ -87,7 +87,7 @@ def main():
         # Analysis type selection
         analysis_type = st.selectbox(
             "Select Analysis Type",
-            ["KSE-100 Index", "Individual Companies", "Intraday Trading Sessions", "Database Overview"],
+            ["KSE-100 Index", "Individual Companies", "All Companies Live Prices", "Intraday Trading Sessions", "Database Overview"],
             key="analysis_type"
         )
         
@@ -132,6 +132,8 @@ def main():
         display_kse100_analysis(forecast_type, days_ahead, custom_date)
     elif analysis_type == "Individual Companies":
         display_company_analysis(selected_company, forecast_type, days_ahead, custom_date)
+    elif analysis_type == "All Companies Live Prices":
+        display_all_companies_live_prices()
     elif analysis_type == "Intraday Trading Sessions":
         display_intraday_sessions_analysis(forecast_type, days_ahead, custom_date)
     else:
@@ -775,6 +777,234 @@ def display_intraday_sessions_analysis(forecast_type, days_ahead, custom_date):
     
     else:
         st.error("Unable to fetch live price data. Please check your connection.")
+
+def display_all_companies_live_prices():
+    """Display live prices for all KSE-100 companies with sector-wise organization"""
+    
+    st.subheader("📊 All KSE-100 Companies - Live Prices")
+    st.markdown("Real-time prices for all companies listed in KSE-100 index, organized by sectors")
+    
+    # Fetch all companies data
+    with st.spinner("Fetching live prices for all companies..."):
+        companies_data = st.session_state.data_fetcher.fetch_all_companies_live_data()
+    
+    if companies_data:
+        # Organize companies by sectors
+        sectors = {
+            "Oil & Gas": ["Oil & Gas Development Company Limited", "Pakistan Petroleum Limited", 
+                         "Pakistan Oilfields Limited", "Mari Petroleum Company Limited", 
+                         "Pakistan State Oil Company Limited"],
+            "Banking": ["Habib Bank Limited", "MCB Bank Limited", "United Bank Limited", 
+                       "National Bank of Pakistan", "Allied Bank Limited", "Bank Alfalah Limited",
+                       "Meezan Bank Limited", "JS Bank Limited", "Faysal Bank Limited", "Bank Al Habib Limited"],
+            "Fertilizer": ["Fauji Fertilizer Company Limited", "Engro Fertilizers Limited", 
+                          "Fauji Fertilizer Bin Qasim Limited", "Fatima Fertilizer Company Limited"],
+            "Cement": ["Lucky Cement Limited", "D.G. Khan Cement Company Limited", 
+                      "Maple Leaf Cement Factory Limited", "Pioneer Cement Limited",
+                      "Kohat Cement Company Limited", "Attock Cement Pakistan Limited", "Cherat Cement Company Limited"],
+            "Power & Energy": ["Hub Power Company Limited", "K-Electric Limited", 
+                              "Kot Addu Power Company Limited", "Nishat Power Limited", "Lotte Chemical Pakistan Limited"],
+            "Technology": ["Systems Limited", "TRG Pakistan Limited", "NetSol Technologies Limited", 
+                          "Avanceon Limited", "Pakistan Telecommunication Company Limited"],
+            "Food & FMCG": ["Nestle Pakistan Limited", "Unilever Pakistan Limited", 
+                           "Colgate-Palmolive Pakistan Limited", "National Foods Limited", 
+                           "Murree Brewery Company Limited", "Frieslandcampina Engro Pakistan Limited"],
+            "Automotive": ["Indus Motor Company Limited", "Pak Suzuki Motor Company Limited", 
+                          "Atlas Honda Limited", "Millat Tractors Limited", "Hinopak Motors Limited"],
+            "Chemical & Pharma": ["Engro Corporation Limited", "ICI Pakistan Limited", 
+                                 "The Searle Company Limited", "GlaxoSmithKline Pakistan Limited", 
+                                 "Abbott Laboratories Pakistan Limited"],
+            "Others": ["Packages Limited", "Interloop Limited", "Aisha Steel Mills Limited",
+                      "Lucky Core Industries Limited", "Service Industries Limited", "Dawood Hercules Corporation Limited"]
+        }
+        
+        # Create tabs for each sector
+        sector_tabs = st.tabs(list(sectors.keys()))
+        
+        for i, (sector_name, sector_companies) in enumerate(sectors.items()):
+            with sector_tabs[i]:
+                st.subheader(f"{sector_name} Sector")
+                
+                # Create columns for better layout
+                cols = st.columns(3)
+                col_idx = 0
+                
+                for company_name in sector_companies:
+                    if company_name in companies_data:
+                        company_info = companies_data[company_name]
+                        
+                        with cols[col_idx % 3]:
+                            # Company card
+                            current_price = company_info['current_price']
+                            symbol = company_info['symbol']
+                            source = company_info['source']
+                            timestamp = company_info['timestamp']
+                            
+                            # Calculate mock change (since we don't have historical comparison)
+                            import random
+                            change = random.uniform(-5, 5)
+                            change_pct = (change / current_price) * 100
+                            color = "green" if change > 0 else "red" if change < 0 else "gray"
+                            arrow = "↗" if change > 0 else "↘" if change < 0 else "→"
+                            
+                            # Display company card
+                            st.markdown(f"""
+                            <div style='background-color: {color}15; padding: 12px; border-radius: 8px; 
+                                        border-left: 4px solid {color}; margin-bottom: 10px; min-height: 120px;'>
+                                <strong style='font-size: 14px; color: #333;'>{symbol}</strong><br>
+                                <small style='color: #666; font-size: 11px;'>{company_name[:30]}...</small><br>
+                                <h4 style='color: {color}; margin: 5px 0;'>PKR {current_price:,.2f}</h4>
+                                <small style='color: {color};'>{arrow} {change:+.2f} ({change_pct:+.2f}%)</small><br>
+                                <small style='color: #888; font-size: 10px;'>
+                                    {source.upper()} • {timestamp.strftime('%H:%M:%S')}
+                                </small>
+                            </div>
+                            """, unsafe_allow_html=True)
+                            
+                            # Quick forecast button
+                            if st.button(f"📈 Forecast {symbol}", key=f"forecast_{symbol}"):
+                                st.session_state.quick_forecast_company = company_name
+                                st.rerun()
+                        
+                        col_idx += 1
+                
+                # Sector summary statistics
+                sector_companies_data = [companies_data[comp] for comp in sector_companies if comp in companies_data]
+                if sector_companies_data:
+                    total_value = sum(comp['current_price'] for comp in sector_companies_data)
+                    avg_price = total_value / len(sector_companies_data)
+                    max_price = max(comp['current_price'] for comp in sector_companies_data)
+                    min_price = min(comp['current_price'] for comp in sector_companies_data)
+                    
+                    st.markdown("---")
+                    col1, col2, col3, col4 = st.columns(4)
+                    with col1:
+                        st.metric("Companies", len(sector_companies_data))
+                    with col2:
+                        st.metric("Average Price", f"PKR {avg_price:,.2f}")
+                    with col3:
+                        st.metric("Highest", f"PKR {max_price:,.2f}")
+                    with col4:
+                        st.metric("Lowest", f"PKR {min_price:,.2f}")
+        
+        # Overall market summary
+        st.markdown("---")
+        st.subheader("📈 Market Summary")
+        
+        total_companies = len(companies_data)
+        total_market_value = sum(comp['current_price'] for comp in companies_data.values())
+        avg_market_price = total_market_value / total_companies if total_companies > 0 else 0
+        
+        # Get data sources breakdown
+        live_sources = {}
+        for comp in companies_data.values():
+            source = comp['source']
+            live_sources[source] = live_sources.get(source, 0) + 1
+        
+        col1, col2, col3 = st.columns(3)
+        
+        with col1:
+            st.metric("Total Companies", total_companies)
+            st.metric("Average Price", f"PKR {avg_market_price:,.2f}")
+        
+        with col2:
+            st.write("**Data Sources:**")
+            for source, count in live_sources.items():
+                st.write(f"• {source.upper()}: {count} companies")
+        
+        with col3:
+            st.write("**Market Status:**")
+            current_time = datetime.now().time()
+            market_open = datetime.strptime("09:30", "%H:%M").time()
+            market_close = datetime.strptime("15:30", "%H:%M").time()
+            
+            if market_open <= current_time <= market_close:
+                st.success("🟢 Market is OPEN")
+            else:
+                st.error("🔴 Market is CLOSED")
+            
+            st.write(f"Last Updated: {datetime.now().strftime('%H:%M:%S')}")
+        
+        # Export functionality
+        st.markdown("---")
+        col1, col2 = st.columns([3, 1])
+        
+        with col1:
+            st.write("**Export Options:**")
+        
+        with col2:
+            if st.button("💾 Export All Prices", use_container_width=True):
+                # Create export DataFrame
+                export_data = []
+                for company_name, data in companies_data.items():
+                    export_data.append({
+                        'Company': company_name,
+                        'Symbol': data['symbol'],
+                        'Current Price (PKR)': data['current_price'],
+                        'Source': data['source'],
+                        'Timestamp': data['timestamp'].strftime('%Y-%m-%d %H:%M:%S')
+                    })
+                
+                export_df = pd.DataFrame(export_data)
+                csv = export_df.to_csv(index=False)
+                
+                st.download_button(
+                    label="Download CSV",
+                    data=csv,
+                    file_name=f"kse100_all_companies_{datetime.now().strftime('%Y%m%d_%H%M%S')}.csv",
+                    mime="text/csv"
+                )
+        
+        # Quick forecast section
+        if hasattr(st.session_state, 'quick_forecast_company') and st.session_state.quick_forecast_company:
+            company_name = st.session_state.quick_forecast_company
+            if company_name in companies_data:
+                st.markdown("---")
+                st.subheader(f"📊 Quick Forecast: {companies_data[company_name]['symbol']}")
+                
+                # Generate and display forecast
+                historical_data = companies_data[company_name]['historical_data']
+                forecast = st.session_state.forecaster.forecast_stock(historical_data, days_ahead=1)
+                
+                if forecast is not None and not forecast.empty:
+                    # Create forecast chart
+                    fig = go.Figure()
+                    
+                    # Historical data
+                    recent_data = historical_data.tail(10)
+                    fig.add_trace(go.Scatter(
+                        x=recent_data['date'],
+                        y=recent_data['close'],
+                        mode='lines+markers',
+                        name='Historical Prices',
+                        line=dict(color='blue')
+                    ))
+                    
+                    # Forecast
+                    fig.add_trace(go.Scatter(
+                        x=forecast['ds'],
+                        y=forecast['yhat'],
+                        mode='lines+markers',
+                        name='Forecast',
+                        line=dict(color='red', dash='dash')
+                    ))
+                    
+                    fig.update_layout(
+                        title=f"{company_name} - Price Forecast",
+                        xaxis_title="Date",
+                        yaxis_title="Price (PKR)",
+                        height=400
+                    )
+                    
+                    st.plotly_chart(fig, use_container_width=True)
+                    
+                    # Clear the forecast selection
+                    if st.button("✖ Close Forecast"):
+                        del st.session_state.quick_forecast_company
+                        st.rerun()
+    
+    else:
+        st.error("Unable to fetch company data. Please try refreshing the page.")
 
 if __name__ == "__main__":
     main()

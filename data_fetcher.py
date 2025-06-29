@@ -20,33 +20,335 @@ class DataFetcher:
         self.live_price_cache = {}
         self.cache_timestamp = None
         
-        # KSE-100 major companies mapping
+        # Complete KSE-100 companies list with all major brands
         self.kse100_companies = {
+            # Oil & Gas Sector
             'Oil & Gas Development Company Limited': 'OGDC',
+            'Pakistan Petroleum Limited': 'PPL',
+            'Pakistan Oilfields Limited': 'POL',
+            'Mari Petroleum Company Limited': 'MARI',
+            'Pakistan State Oil Company Limited': 'PSO',
+            
+            # Banking Sector
             'Habib Bank Limited': 'HBL',
             'MCB Bank Limited': 'MCB',
-            'Engro Corporation Limited': 'ENGRO',
-            'Lucky Cement Limited': 'LUCK',
-            'Pakistan State Oil Company Limited': 'PSO',
             'United Bank Limited': 'UBL',
-            'Fauji Fertilizer Company Limited': 'FFC',
-            'Pakistan Petroleum Limited': 'PPL',
             'National Bank of Pakistan': 'NBP',
+            'Allied Bank Limited': 'ABL',
+            'Bank Alfalah Limited': 'BAFL',
+            'Meezan Bank Limited': 'MEBL',
+            'JS Bank Limited': 'JSBL',
+            'Faysal Bank Limited': 'FABL',
+            'Bank Al Habib Limited': 'BAHL',
+            
+            # Fertilizer Sector
+            'Fauji Fertilizer Company Limited': 'FFC',
+            'Engro Fertilizers Limited': 'EFERT',
+            'Fauji Fertilizer Bin Qasim Limited': 'FFBL',
+            'Fatima Fertilizer Company Limited': 'FATIMA',
+            
+            # Cement Sector
+            'Lucky Cement Limited': 'LUCK',
+            'D.G. Khan Cement Company Limited': 'DGKC',
+            'Maple Leaf Cement Factory Limited': 'MLCF',
+            'Pioneer Cement Limited': 'PIOC',
+            'Kohat Cement Company Limited': 'KOHC',
+            'Attock Cement Pakistan Limited': 'ACPL',
+            'Cherat Cement Company Limited': 'CHCC',
+            
+            # Power & Energy
             'Hub Power Company Limited': 'HUBC',
+            'K-Electric Limited': 'KEL',
+            'Kot Addu Power Company Limited': 'KAPCO',
+            'Nishat Power Limited': 'NPL',
+            'Lotte Chemical Pakistan Limited': 'LOTTE',
+            
+            # Textile Sector
+            'Interloop Limited': 'ILP',
+            'Nishat Mills Limited': 'NML',
+            'Gul Ahmed Textile Mills Limited': 'GATM',
+            'Kohinoor Textile Mills Limited': 'KOHTM',
+            'Crescent Textile Mills Limited': 'CTM',
+            
+            # Technology & Telecom
             'Systems Limited': 'SYS',
-            'Pakistan Tobacco Company Limited': 'PTC',
-            'Millat Tractors Limited': 'MTL',
+            'TRG Pakistan Limited': 'TRG',
+            'NetSol Technologies Limited': 'NETSOL',
+            'Avanceon Limited': 'AVN',
+            'Pakistan Telecommunication Company Limited': 'PTC',
+            
+            # Food & Personal Care
             'Nestle Pakistan Limited': 'NESTLE',
             'Unilever Pakistan Limited': 'UNILEVER',
-            'TRG Pakistan Limited': 'TRG',
-            'Interloop Limited': 'ILP',
+            'Colgate-Palmolive Pakistan Limited': 'COLG',
+            'National Foods Limited': 'NATF',
+            'Murree Brewery Company Limited': 'MUREB',
+            'Frieslandcampina Engro Pakistan Limited': 'FEP',
+            
+            # Automotive
+            'Indus Motor Company Limited': 'INDU',
+            'Pak Suzuki Motor Company Limited': 'PSMC',
+            'Atlas Honda Limited': 'ATLH',
+            'Millat Tractors Limited': 'MTL',
+            'Hinopak Motors Limited': 'HINO',
+            
+            # Chemical & Pharma
+            'Engro Corporation Limited': 'ENGRO',
+            'ICI Pakistan Limited': 'ICI',
+            'The Searle Company Limited': 'SEARL',
+            'GlaxoSmithKline Pakistan Limited': 'GSK',
+            'Abbott Laboratories Pakistan Limited': 'ABT',
+            
+            # Steel & Engineering
+            'Aisha Steel Mills Limited': 'ASL',
+            'International Steels Limited': 'ISL',
+            'Amreli Steels Limited': 'ARSL',
+            'Al-Ghazi Tractors Limited': 'AGTL',
+            
+            # Paper & Board
             'Packages Limited': 'PKGS',
-            'D.G. Khan Cement Company Limited': 'DGKC'
+            'Century Paper & Board Mills Limited': 'CPL',
+            'Security Papers Limited': 'SPL',
+            
+            # Insurance
+            'Adamjee Insurance Company Limited': 'AICL',
+            'EFU Life Assurance Limited': 'EFUL',
+            'Jubilee Life Insurance Company Limited': 'JLICL',
+            
+            # Sugar & Allied
+            'JDW Sugar Mills Limited': 'JDW',
+            'Al-Abbas Sugar Mills Limited': 'AABS',
+            'Shakarganj Mills Limited': 'SML',
+            
+            # Miscellaneous
+            'Lucky Core Industries Limited': 'LCI',
+            'Service Industries Limited': 'SIL',
+            'Dawood Hercules Corporation Limited': 'DAWH'
         }
     
     def get_kse100_companies(self):
         """Return the list of KSE-100 companies"""
         return self.kse100_companies
+    
+    def fetch_all_companies_live_data(self):
+        """Fetch live prices for all KSE-100 companies"""
+        companies_data = {}
+        
+        st.write("🔄 Fetching live prices for all KSE-100 companies...")
+        progress_bar = st.progress(0)
+        total_companies = len(self.kse100_companies)
+        
+        for i, (company_name, symbol) in enumerate(self.kse100_companies.items()):
+            progress_bar.progress((i + 1) / total_companies)
+            
+            # Get live price for this company
+            live_price = self.get_live_company_price(symbol)
+            
+            if live_price:
+                # Generate historical data around current price
+                historical_data = self._generate_recent_data_around_price(live_price['price'])
+                companies_data[company_name] = {
+                    'current_price': live_price['price'],
+                    'timestamp': live_price['timestamp'],
+                    'source': live_price['source'],
+                    'historical_data': historical_data,
+                    'symbol': symbol
+                }
+            else:
+                # Use fallback data if live price unavailable
+                historical_data = self._generate_sample_company_data(symbol)
+                current_price = historical_data['close'].iloc[-1] if not historical_data.empty else 100
+                companies_data[company_name] = {
+                    'current_price': current_price,
+                    'timestamp': datetime.now(),
+                    'source': 'simulated',
+                    'historical_data': historical_data,
+                    'symbol': symbol
+                }
+        
+        progress_bar.empty()
+        return companies_data
+    
+    def get_live_company_price(self, symbol):
+        """Get live price for a specific company using multiple sources"""
+        
+        # Check cache first (30 seconds)
+        cache_key = f"company_{symbol}"
+        current_time = datetime.now()
+        
+        if (cache_key in self.live_price_cache and 
+            self.cache_timestamp and 
+            (current_time - self.cache_timestamp).total_seconds() < 30):
+            return self.live_price_cache[cache_key]
+        
+        # Try multiple PSX data sources
+        sources = [
+            self._fetch_psx_live_api,
+            self._fetch_investing_live,
+            self._fetch_yahoo_realtime,
+            self._fetch_from_khadim_ali_shah
+        ]
+        
+        for source_func in sources:
+            try:
+                price_data = source_func(symbol)
+                if price_data and price_data.get('price', 0) > 0:
+                    # Cache the result
+                    self.live_price_cache[cache_key] = price_data
+                    self.cache_timestamp = current_time
+                    return price_data
+            except Exception:
+                continue
+        
+        # Generate realistic price based on symbol if all sources fail
+        return self._generate_realistic_company_price(symbol)
+    
+    def _fetch_from_khadim_ali_shah(self, symbol):
+        """Fetch from PSX data providers like KAS"""
+        try:
+            # KAS Live data (common PSX data provider)
+            url = f"https://www.khadim.pk/stock/{symbol.lower()}"
+            response = self.session.get(url, timeout=5)
+            
+            if response.status_code == 200:
+                soup = BeautifulSoup(response.content, 'html.parser')
+                
+                # Look for price patterns
+                price_patterns = [
+                    r'price["\']?\s*:\s*["\']?(\d+\.?\d*)',
+                    r'current["\']?\s*:\s*["\']?(\d+\.?\d*)',
+                    r'last["\']?\s*:\s*["\']?(\d+\.?\d*)'
+                ]
+                
+                for pattern in price_patterns:
+                    matches = re.findall(pattern, response.text, re.IGNORECASE)
+                    for match in matches:
+                        try:
+                            price = float(match)
+                            if self._is_valid_price_for_symbol(symbol, price):
+                                return {
+                                    'price': price,
+                                    'timestamp': datetime.now(),
+                                    'source': 'kas'
+                                }
+                        except ValueError:
+                            continue
+            
+            return None
+            
+        except Exception:
+            return None
+    
+    def _fetch_from_psx_official_live(self, symbol):
+        """Enhanced PSX official website scraping"""
+        try:
+            # PSX official live data
+            url = f"https://www.psx.com.pk/psx/themes/psx/live-quotes/{symbol}"
+            response = self.session.get(url, timeout=10)
+            
+            if response.status_code == 200:
+                soup = BeautifulSoup(response.content, 'html.parser')
+                
+                # Multiple selectors for price data
+                price_selectors = [
+                    '.live-price',
+                    '.current-price',
+                    '.last-price',
+                    '[data-field="price"]',
+                    '[data-field="last"]',
+                    '.price-cell',
+                    'td.price',
+                    'span.price'
+                ]
+                
+                for selector in price_selectors:
+                    elements = soup.select(selector)
+                    for element in elements:
+                        text = element.get_text().strip()
+                        # Extract numeric price
+                        price_match = re.search(r'(\d+\.?\d*)', text.replace(',', ''))
+                        if price_match:
+                            try:
+                                price = float(price_match.group(1))
+                                if self._is_valid_price_for_symbol(symbol, price):
+                                    return {
+                                        'price': price,
+                                        'timestamp': datetime.now(),
+                                        'source': 'psx_official'
+                                    }
+                            except ValueError:
+                                continue
+            
+            return None
+            
+        except Exception:
+            return None
+    
+    def _is_valid_price_for_symbol(self, symbol, price):
+        """Validate if price is reasonable for the given symbol"""
+        # Price ranges for different companies (approximate)
+        price_ranges = {
+            'OGDC': (80, 200),
+            'HBL': (100, 300),
+            'MCB': (150, 400),
+            'ENGRO': (200, 600),
+            'LUCK': (400, 1000),
+            'PSO': (150, 400),
+            'UBL': (100, 300),
+            'FFC': (60, 150),
+            'PPL': (50, 150),
+            'NBP': (30, 80),
+            'HUBC': (50, 150),
+            'SYS': (600, 1500),
+            'PTC': (800, 2000),
+            'MTL': (800, 2000),
+            'NESTLE': (4000, 8000),
+            'UNILEVER': (3000, 6000),
+            'TRG': (80, 200),
+            'ILP': (40, 120),
+            'PKGS': (300, 700),
+            'DGKC': (40, 120)
+        }
+        
+        if symbol in price_ranges:
+            min_price, max_price = price_ranges[symbol]
+            return min_price <= price <= max_price
+        
+        # Default range for unknown symbols
+        return 10 <= price <= 10000
+    
+    def _generate_realistic_company_price(self, symbol):
+        """Generate realistic current price for a company based on historical patterns"""
+        # Base prices for different companies
+        base_prices = {
+            'OGDC': 120, 'HBL': 180, 'MCB': 220, 'ENGRO': 350, 'LUCK': 650,
+            'PSO': 200, 'UBL': 170, 'FFC': 95, 'PPL': 80, 'NBP': 45,
+            'HUBC': 85, 'SYS': 1000, 'PTC': 1400, 'MTL': 1200, 'NESTLE': 5800,
+            'UNILEVER': 4500, 'TRG': 130, 'ILP': 70, 'PKGS': 480, 'DGKC': 75,
+            'POL': 300, 'MARI': 1200, 'ABL': 85, 'BAFL': 35, 'MEBL': 95,
+            'JSBL': 6.5, 'FABL': 25, 'BAHL': 45, 'EFERT': 65, 'FFBL': 22,
+            'FATIMA': 28, 'MLCF': 45, 'PIOC': 18, 'KOHC': 170, 'ACPL': 35,
+            'CHCC': 140, 'KEL': 4.2, 'KAPCO': 25, 'NPL': 18, 'LOTTE': 18,
+            'NML': 65, 'GATM': 28, 'KOHTM': 7.5, 'CTM': 35, 'NETSOL': 85,
+            'AVN': 45, 'COLG': 2400, 'NATF': 180, 'MUREB': 450, 'FEP': 95,
+            'INDU': 1350, 'PSMC': 220, 'ATLH': 320, 'HINO': 285, 'ICI': 850,
+            'SEARL': 180, 'GSK': 140, 'ABT': 850, 'ASL': 55, 'ISL': 85,
+            'ARSL': 45, 'AGTL': 420, 'CPL': 8.5, 'SPL': 18, 'AICL': 55,
+            'EFUL': 320, 'JLICL': 380, 'JDW': 220, 'AABS': 12, 'SML': 85,
+            'LCI': 220, 'SIL': 580, 'DAWH': 95
+        }
+        
+        base_price = base_prices.get(symbol, 100)
+        
+        # Add realistic daily movement (±3%)
+        movement = np.random.uniform(-0.03, 0.03)
+        current_price = base_price * (1 + movement)
+        
+        return {
+            'price': round(current_price, 2),
+            'timestamp': datetime.now(),
+            'source': 'simulated'
+        }
     
     @st.cache_data(ttl=300)  # Cache for 5 minutes
     def fetch_kse100_data(_self):
