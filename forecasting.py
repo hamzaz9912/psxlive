@@ -33,11 +33,24 @@ class StockForecaster:
             df_prophet = historical_data[['date', 'close']].copy()
             df_prophet.columns = ['ds', 'y']
             df_prophet['ds'] = pd.to_datetime(df_prophet['ds'])
+            
+            # Remove timezone information if present
+            if df_prophet['ds'].dt.tz is not None:
+                df_prophet['ds'] = df_prophet['ds'].dt.tz_localize(None)
+            
             df_prophet = df_prophet.sort_values('ds').reset_index(drop=True)
             
             # Ensure we have enough data points
             if len(df_prophet) < 10:
+                st.error("Insufficient data. Need at least 10 data points for forecasting.")
                 return None
+            
+            # Validate data quality
+            if df_prophet['y'].isna().any():
+                df_prophet = df_prophet.dropna()
+                if len(df_prophet) < 10:
+                    st.error("Insufficient valid data after removing missing values.")
+                    return None
             
             # Initialize and fit Prophet model
             model = Prophet(
@@ -55,16 +68,9 @@ class StockForecaster:
             model.fit(df_prophet)
             
             # Create future dataframe based on forecast type
-            if forecast_type == 'intraday':
-                future = self._create_intraday_future_df(model, days_ahead)
-            elif forecast_type == 'morning_session':
-                future = self._create_session_future_df(model, session='morning')
-            elif forecast_type == 'afternoon_session':
-                future = self._create_session_future_df(model, session='afternoon')
-            elif days_ahead == 0:
-                # For end-of-day forecasting
-                future_date = datetime.now().replace(hour=23, minute=59, second=59, microsecond=0)
-                future = pd.DataFrame({'ds': [pd.Timestamp(future_date)]})
+            if forecast_type in ['intraday', 'morning_session', 'afternoon_session'] or days_ahead == 0:
+                # For same-day forecasting, predict next few hours/end of day
+                future = model.make_future_dataframe(periods=1, freq='D')
             else:
                 # For multi-day forecasting
                 future = model.make_future_dataframe(periods=days_ahead, freq='D')
@@ -191,7 +197,7 @@ class StockForecaster:
     def _create_intraday_future_df(self, model, days_ahead=1):
         """Create future dataframe for intraday predictions"""
         try:
-            today = datetime.now().date()
+            today = datetime.now().replace(tzinfo=None).date()
             future_dates = []
             
             # PSX trading hours: 9:30 AM to 3:30 PM (6 hours)
@@ -231,7 +237,7 @@ class StockForecaster:
     def _create_session_future_df(self, model, session='morning'):
         """Create future dataframe for specific trading sessions"""
         try:
-            today = datetime.now().date()
+            today = datetime.now().replace(tzinfo=None).date()
             future_dates = []
             
             if session == 'morning':

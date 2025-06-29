@@ -443,7 +443,7 @@ class DataFetcher:
     
     def _generate_recent_data_around_price(self, current_price):
         """Generate realistic recent data points around a given current price"""
-        dates = pd.date_range(end=datetime.now(), periods=30, freq='D')
+        dates = pd.date_range(end=datetime.now().replace(tzinfo=None), periods=30, freq='D')
         
         # Generate realistic price movement
         returns = np.random.normal(0, 0.02, 29)  # 2% daily volatility
@@ -477,8 +477,8 @@ class DataFetcher:
     
     def _generate_sample_kse_data(self):
         """Generate realistic sample KSE-100 data for demonstration"""
-        # Generate data for the last 30 days
-        dates = pd.date_range(end=datetime.now(), periods=30, freq='D')
+        # Generate data for the last 30 days (timezone-naive)
+        dates = pd.date_range(end=datetime.now().replace(tzinfo=None), periods=30, freq='D')
         
         # Start with a base price around current KSE-100 levels
         base_price = 45000  # Approximate KSE-100 level
@@ -539,8 +539,8 @@ class DataFetcher:
         
         base_price = base_prices.get(symbol, 100)
         
-        # Generate data for the last 30 days
-        dates = pd.date_range(end=datetime.now(), periods=30, freq='D')
+        # Generate data for the last 30 days (timezone-naive)
+        dates = pd.date_range(end=datetime.now().replace(tzinfo=None), periods=30, freq='D')
         
         # Generate realistic price movements with company-specific volatility
         volatility = 0.025 if symbol in ['NESTLE', 'UNILEVER'] else 0.035  # Blue chips vs others
