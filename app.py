@@ -137,7 +137,10 @@ def display_kse100_analysis(forecast_type, days_ahead, custom_date):
             need_fresh_data = True
             if db_data is not None and not db_data.empty:
                 latest_db_date = pd.to_datetime(db_data['date'].max())
-                if (datetime.now() - latest_db_date).total_seconds() < 300:  # 5 minutes
+                # Convert both to timezone-naive for comparison
+                current_time = datetime.now().replace(tzinfo=None)
+                latest_db_time = latest_db_date.replace(tzinfo=None)
+                if (current_time - latest_db_time).total_seconds() < 300:  # 5 minutes
                     need_fresh_data = False
                     kse_data = db_data
             
@@ -273,7 +276,10 @@ def display_company_analysis(selected_company, forecast_type, days_ahead, custom
             need_fresh_data = True
             if db_data is not None and not db_data.empty:
                 latest_db_date = pd.to_datetime(db_data['date'].max())
-                if (datetime.now() - latest_db_date).total_seconds() < 300:  # 5 minutes
+                # Convert both to timezone-naive for comparison
+                current_time = datetime.now().replace(tzinfo=None)
+                latest_db_time = latest_db_date.replace(tzinfo=None)
+                if (current_time - latest_db_time).total_seconds() < 300:  # 5 minutes
                     need_fresh_data = False
                     company_data = db_data
             

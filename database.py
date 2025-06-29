@@ -6,7 +6,7 @@ from sqlalchemy.ext.declarative import declarative_base
 from sqlalchemy.orm import sessionmaker
 from sqlalchemy.dialects.postgresql import UUID
 import uuid
-from datetime import datetime, timezone
+from datetime import datetime
 import json
 
 # Database configuration
@@ -27,14 +27,14 @@ class StockData(Base):
     id = Column(Integer, primary_key=True, index=True)
     symbol = Column(String(10), index=True)  # e.g., 'KSE-100', 'OGDC'
     company_name = Column(String(200))
-    date = Column(DateTime(timezone=True), index=True)
+    date = Column(DateTime, index=True)
     open_price = Column(Float)
     high_price = Column(Float)
     low_price = Column(Float)
     close_price = Column(Float)
     volume = Column(Float)
-    created_at = Column(DateTime(timezone=True), default=datetime.now(timezone.utc))
-    updated_at = Column(DateTime(timezone=True), default=datetime.now(timezone.utc), onupdate=datetime.now(timezone.utc))
+    created_at = Column(DateTime, default=datetime.now)
+    updated_at = Column(DateTime, default=datetime.now, onupdate=datetime.now)
 
 class ForecastData(Base):
     """Table to store forecast predictions"""
@@ -42,13 +42,13 @@ class ForecastData(Base):
     
     id = Column(Integer, primary_key=True, index=True)
     symbol = Column(String(10), index=True)
-    forecast_date = Column(DateTime(timezone=True), index=True)
+    forecast_date = Column(DateTime, index=True)
     predicted_price = Column(Float)
     confidence_lower = Column(Float)
     confidence_upper = Column(Float)
     forecast_type = Column(String(50))  # 'intraday', 'next_day', 'custom'
     model_used = Column(String(50))  # 'prophet', 'moving_average', etc.
-    created_at = Column(DateTime(timezone=True), default=datetime.now(timezone.utc))
+    created_at = Column(DateTime, default=datetime.now)
 
 class UserSettings(Base):
     """Table to store user preferences and settings"""
@@ -57,8 +57,8 @@ class UserSettings(Base):
     id = Column(Integer, primary_key=True, index=True)
     setting_key = Column(String(100), unique=True, index=True)
     setting_value = Column(Text)
-    created_at = Column(DateTime(timezone=True), default=datetime.now(timezone.utc))
-    updated_at = Column(DateTime(timezone=True), default=datetime.now(timezone.utc), onupdate=datetime.now(timezone.utc))
+    created_at = Column(DateTime, default=datetime.now)
+    updated_at = Column(DateTime, default=datetime.now, onupdate=datetime.now)
 
 class MarketEvents(Base):
     """Table to store significant market events and alerts"""
@@ -68,9 +68,9 @@ class MarketEvents(Base):
     event_type = Column(String(50))  # 'price_alert', 'forecast_accuracy', 'market_news'
     symbol = Column(String(10))
     event_data = Column(Text)  # JSON string
-    event_date = Column(DateTime(timezone=True), index=True)
+    event_date = Column(DateTime, index=True)
     is_processed = Column(Boolean, default=False)
-    created_at = Column(DateTime(timezone=True), default=datetime.now(timezone.utc))
+    created_at = Column(DateTime, default=datetime.now)
 
 class DatabaseManager:
     """Class to handle all database operations"""
@@ -110,10 +110,15 @@ class DatabaseManager:
                 ).first()
                 
                 if not existing:
+                    # Ensure datetime is timezone-naive
+                    date_value = pd.to_datetime(row['date'])
+                    if date_value.tz is not None:
+                        date_value = date_value.tz_localize(None)
+                    
                     stock_record = StockData(
                         symbol=symbol,
                         company_name=company_name,
-                        date=pd.to_datetime(row['date']),
+                        date=date_value,
                         open_price=float(row['open']),
                         high_price=float(row['high']),
                         low_price=float(row['low']),
@@ -128,7 +133,7 @@ class DatabaseManager:
                     existing.low_price = float(row['low'])
                     existing.close_price = float(row['close'])
                     existing.volume = float(row['volume']) if pd.notna(row['volume']) else 0
-                    existing.updated_at = datetime.now(timezone.utc)
+                    existing.updated_at = datetime.now()
             
             session.commit()
         except Exception as e:
@@ -224,7 +229,7 @@ class DatabaseManager:
         """
         session = self.get_session()
         try:
-            cutoff_date = datetime.now(timezone.utc) - pd.Timedelta(days=days)
+            cutoff_date = datetime.now() - pd.Timedelta(days=days)
             
             query = session.query(ForecastData).filter(
                 ForecastData.symbol == symbol,
@@ -275,7 +280,7 @@ class DatabaseManager:
             
             if existing:
                 existing.setting_value = value_json
-                existing.updated_at = datetime.now(timezone.utc)
+                existing.updated_at = datetime.now()
             else:
                 setting = UserSettings(
                     setting_key=key,
@@ -336,7 +341,7 @@ class DatabaseManager:
                 event_type=event_type,
                 symbol=symbol,
                 event_data=json.dumps(event_data),
-                event_date=datetime.now(timezone.utc)
+                event_date=datetime.now()
             )
             session.add(event)
             session.commit()
