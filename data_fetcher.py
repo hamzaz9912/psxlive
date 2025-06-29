@@ -69,7 +69,16 @@ class DataFetcher:
         except Exception as e:
             st.warning(f"PSX official source failed: {str(e)}")
         
-        # Source 3: Generate realistic sample data if all sources fail
+        # Source 3: Try Yahoo Finance alternative
+        try:
+            data = _self._fetch_from_yahoo_finance("^KSE100")
+            if data is not None and not data.empty:
+                return data
+        except Exception as e:
+            st.warning(f"Yahoo Finance source failed: {str(e)}")
+        
+        # Source 4: Generate realistic sample data if all sources fail
+        st.info("Using simulated data for demonstration. Real-time data sources are currently unavailable.")
         return _self._generate_sample_kse_data()
     
     @st.cache_data(ttl=300)  # Cache for 5 minutes
@@ -92,7 +101,18 @@ class DataFetcher:
         except Exception as e:
             st.warning(f"Investing.com source failed for {company_name}: {str(e)}")
         
-        # Source 2: Generate realistic sample data if sources fail
+        # Source 2: Try Yahoo Finance for individual stocks
+        try:
+            # Convert company name to Yahoo Finance symbol
+            yahoo_symbol = f"{symbol}.KAR"  # Karachi Stock Exchange suffix
+            data = _self._fetch_from_yahoo_finance(yahoo_symbol)
+            if data is not None and not data.empty:
+                return data
+        except Exception as e:
+            st.warning(f"Yahoo Finance source failed for {company_name}: {str(e)}")
+        
+        # Source 3: Generate realistic sample data if sources fail
+        st.info(f"Using simulated data for {company_name}. Real-time data sources are currently unavailable.")
         return _self._generate_sample_company_data(symbol)
     
     def _fetch_from_investing_com(self, symbol):
@@ -182,6 +202,50 @@ class DataFetcher:
             return None
             
         except Exception as e:
+            return None
+    
+    def _fetch_from_yahoo_finance(self, symbol):
+        """Fetch data from Yahoo Finance"""
+        try:
+            # Yahoo Finance API endpoint
+            import time
+            end_time = int(time.time())
+            start_time = end_time - (30 * 24 * 60 * 60)  # 30 days ago
+            
+            url = f"https://query1.finance.yahoo.com/v7/finance/download/{symbol}?period1={start_time}&period2={end_time}&interval=1d&events=history"
+            
+            response = self.session.get(url, timeout=10)
+            if response.status_code != 200:
+                return None
+            
+            # Parse CSV data
+            from io import StringIO
+            csv_data = StringIO(response.text)
+            df = pd.read_csv(csv_data)
+            
+            if df.empty:
+                return None
+            
+            # Rename columns to match our format
+            df = df.rename(columns={
+                'Date': 'date',
+                'Open': 'open',
+                'High': 'high',
+                'Low': 'low',
+                'Close': 'close',
+                'Volume': 'volume',
+                'Adj Close': 'adj_close'
+            })
+            
+            # Convert date column
+            df['date'] = pd.to_datetime(df['date'])
+            
+            # Clean and sort data
+            df = df.dropna().sort_values('date').reset_index(drop=True)
+            
+            return df
+            
+        except Exception:
             return None
     
     def _generate_recent_data_around_price(self, current_price):

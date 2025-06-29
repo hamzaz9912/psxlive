@@ -117,9 +117,10 @@ class StockForecaster:
             ma = historical_data['close'].rolling(window=window).mean().iloc[-1]
             
             # Create forecast dataframe
-            last_date = pd.Timestamp(historical_data['date'].max())
+            last_date = pd.to_datetime(historical_data['date'].max())
+            start_date = last_date + pd.Timedelta(days=1)
             future_dates = pd.date_range(
-                start=last_date + pd.Timedelta(days=1),
+                start=start_date,
                 periods=days_ahead,
                 freq='D'
             )
@@ -156,9 +157,10 @@ class StockForecaster:
             future_y = slope * future_x + intercept
             
             # Create forecast dataframe
-            last_date = pd.Timestamp(historical_data['date'].max())
+            last_date = pd.to_datetime(historical_data['date'].max())
+            start_date = last_date + pd.Timedelta(days=1)
             future_dates = pd.date_range(
-                start=last_date + pd.Timedelta(days=1),
+                start=start_date,
                 periods=days_ahead,
                 freq='D'
             )
