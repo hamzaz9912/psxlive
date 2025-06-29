@@ -12,13 +12,14 @@ class StockForecaster:
     def __init__(self):
         self.model = None
         
-    def forecast_stock(self, historical_data, days_ahead=1):
+    def forecast_stock(self, historical_data, days_ahead=1, forecast_type='daily'):
         """
         Forecast stock prices using Prophet model
         
         Args:
             historical_data (pd.DataFrame): Historical stock data with date and close columns
             days_ahead (int): Number of days to forecast ahead
+            forecast_type (str): 'daily', 'intraday', 'morning_session', 'afternoon_session'
             
         Returns:
             pd.DataFrame: Forecast data with predictions and confidence intervals
@@ -53,9 +54,15 @@ class StockForecaster:
             # Fit the model
             model.fit(df_prophet)
             
-            # Create future dataframe
-            if days_ahead == 0:
-                # For intraday forecasting, predict end of current day
+            # Create future dataframe based on forecast type
+            if forecast_type == 'intraday':
+                future = self._create_intraday_future_df(model, days_ahead)
+            elif forecast_type == 'morning_session':
+                future = self._create_session_future_df(model, session='morning')
+            elif forecast_type == 'afternoon_session':
+                future = self._create_session_future_df(model, session='afternoon')
+            elif days_ahead == 0:
+                # For end-of-day forecasting
                 future_date = datetime.now().replace(hour=23, minute=59, second=59, microsecond=0)
                 future = pd.DataFrame({'ds': [pd.Timestamp(future_date)]})
             else:
@@ -180,6 +187,81 @@ class StockForecaster:
             
         except Exception:
             return None
+    
+    def _create_intraday_future_df(self, model, days_ahead=1):
+        """Create future dataframe for intraday predictions"""
+        try:
+            today = datetime.now().date()
+            future_dates = []
+            
+            # PSX trading hours: 9:30 AM to 3:30 PM (6 hours)
+            # Create hourly predictions for the trading day
+            for day in range(days_ahead):
+                target_date = today + timedelta(days=day)
+                
+                # Morning session: 9:30 AM to 12:00 PM
+                for hour in range(9, 12):
+                    if hour == 9:
+                        dt = datetime.combine(target_date, datetime.min.time().replace(hour=9, minute=30))
+                    else:
+                        dt = datetime.combine(target_date, datetime.min.time().replace(hour=hour))
+                    future_dates.append(dt)
+                
+                # 12:00 PM (noon)
+                dt = datetime.combine(target_date, datetime.min.time().replace(hour=12))
+                future_dates.append(dt)
+                
+                # Afternoon session: 12:30 PM to 3:30 PM
+                for hour in range(12, 16):
+                    if hour == 12:
+                        dt = datetime.combine(target_date, datetime.min.time().replace(hour=12, minute=30))
+                    elif hour == 15:
+                        dt = datetime.combine(target_date, datetime.min.time().replace(hour=15, minute=30))
+                    else:
+                        dt = datetime.combine(target_date, datetime.min.time().replace(hour=hour))
+                    if dt not in future_dates:  # Avoid duplicate 12:00
+                        future_dates.append(dt)
+            
+            return pd.DataFrame({'ds': future_dates})
+            
+        except Exception:
+            # Fallback to simple daily prediction
+            return model.make_future_dataframe(periods=days_ahead, freq='D')
+    
+    def _create_session_future_df(self, model, session='morning'):
+        """Create future dataframe for specific trading sessions"""
+        try:
+            today = datetime.now().date()
+            future_dates = []
+            
+            if session == 'morning':
+                # Morning session: 9:30 AM to 12:00 PM
+                start_time = datetime.combine(today, datetime.min.time().replace(hour=9, minute=30))
+                end_time = datetime.combine(today, datetime.min.time().replace(hour=12))
+                
+                # Create 30-minute intervals
+                current_time = start_time
+                while current_time <= end_time:
+                    future_dates.append(current_time)
+                    current_time += timedelta(minutes=30)
+                    
+            elif session == 'afternoon':
+                # Afternoon session: 12:30 PM to 3:30 PM
+                start_time = datetime.combine(today, datetime.min.time().replace(hour=12, minute=30))
+                end_time = datetime.combine(today, datetime.min.time().replace(hour=15, minute=30))
+                
+                # Create 30-minute intervals
+                current_time = start_time
+                while current_time <= end_time:
+                    future_dates.append(current_time)
+                    current_time += timedelta(minutes=30)
+            
+            return pd.DataFrame({'ds': future_dates})
+            
+        except Exception:
+            # Fallback to end of day prediction
+            future_date = datetime.now().replace(hour=15, minute=30)
+            return pd.DataFrame({'ds': [future_date]})
     
     def get_forecast_accuracy_metrics(self, historical_data, forecast_data):
         """

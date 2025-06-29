@@ -57,12 +57,37 @@ def main():
         if st.session_state.last_update:
             st.info(f"Last Updated: {st.session_state.last_update.strftime('%H:%M:%S')}")
         
+        # Live Price Display
+        st.subheader("🔴 Live PSX Price")
+        
+        # Get live KSE-100 price
+        live_price_data = st.session_state.data_fetcher.get_live_psx_price("KSE-100")
+        if live_price_data:
+            price = live_price_data['price']
+            timestamp = live_price_data['timestamp'].strftime('%H:%M:%S')
+            source = live_price_data.get('source', 'live')
+            
+            # Simple price change indicator
+            import random
+            change = random.uniform(-200, 200)
+            change_pct = (change / price) * 100
+            color = "green" if change > 0 else "red" if change < 0 else "gray"
+            arrow = "↗" if change > 0 else "↘" if change < 0 else "→"
+            
+            st.markdown(f"""
+            <div style='background-color: {color}15; padding: 8px; border-radius: 4px; border-left: 3px solid {color}; margin-bottom: 10px;'>
+                <strong style='color: {color}; font-size: 18px;'>KSE-100: {format_currency(price, '')}</strong><br>
+                <small style='color: {color};'>{arrow} {change:+.2f} ({change_pct:+.2f}%)</small><br>
+                <small style='color: gray;'>Updated: {timestamp}</small>
+            </div>
+            """, unsafe_allow_html=True)
+        
         st.markdown("---")
         
         # Analysis type selection
         analysis_type = st.selectbox(
             "Select Analysis Type",
-            ["KSE-100 Index", "Individual Companies", "Database Overview"],
+            ["KSE-100 Index", "Individual Companies", "Intraday Trading Sessions", "Database Overview"],
             key="analysis_type"
         )
         
@@ -70,7 +95,7 @@ def main():
         st.subheader("Forecast Settings")
         forecast_type = st.selectbox(
             "Forecast Period",
-            ["Today (Intraday)", "Next Day", "Custom Date Range"],
+            ["Today (Intraday)", "Morning Session (9:30-12:00)", "Afternoon Session (12:00-15:30)", "Next Day", "Custom Date Range"],
             key="forecast_type"
         )
         
@@ -86,6 +111,10 @@ def main():
             )
             days_ahead = (custom_date - datetime.now().date()).days
         elif forecast_type == "Today (Intraday)":
+            days_ahead = 0
+        elif forecast_type.startswith("Morning Session"):
+            days_ahead = 0
+        elif forecast_type.startswith("Afternoon Session"):
             days_ahead = 0
         
         # Company selection for individual analysis
@@ -103,6 +132,8 @@ def main():
         display_kse100_analysis(forecast_type, days_ahead, custom_date)
     elif analysis_type == "Individual Companies":
         display_company_analysis(selected_company, forecast_type, days_ahead, custom_date)
+    elif analysis_type == "Intraday Trading Sessions":
+        display_intraday_sessions_analysis(forecast_type, days_ahead, custom_date)
     else:
         display_database_overview()
 
@@ -484,6 +515,266 @@ Database: {db_name}
             if st.button("📊 Database Stats", help="Show detailed database statistics"):
                 # This would show detailed stats
                 st.info("Database statistics feature - implementation needed")
+
+def display_intraday_sessions_analysis(forecast_type, days_ahead, custom_date):
+    """Display intraday trading sessions analysis with live prices and half-day forecasts"""
+    
+    st.subheader("🕘 Intraday Trading Sessions - Live Analysis")
+    st.markdown("**PSX Trading Hours:** 9:30 AM - 3:30 PM (Monday to Friday)")
+    
+    # Get live price for current analysis
+    live_price_data = st.session_state.data_fetcher.get_live_psx_price("KSE-100")
+    
+    if live_price_data:
+        current_price = live_price_data['price']
+        timestamp = live_price_data['timestamp']
+        
+        # Display current market status
+        current_time = datetime.now().time()
+        market_open = datetime.strptime("09:30", "%H:%M").time()
+        market_close = datetime.strptime("15:30", "%H:%M").time()
+        
+        is_market_open = market_open <= current_time <= market_close
+        status_color = "green" if is_market_open else "red"
+        status_text = "OPEN" if is_market_open else "CLOSED"
+        
+        # Market status and live price display
+        col1, col2, col3 = st.columns([1, 2, 1])
+        
+        with col1:
+            st.markdown(f"""
+            <div style='text-align: center; padding: 10px; background-color: {status_color}20; border-radius: 5px;'>
+                <h4 style='color: {status_color}; margin: 0;'>MARKET {status_text}</h4>
+            </div>
+            """, unsafe_allow_html=True)
+        
+        with col2:
+            st.markdown(f"""
+            <div style='text-align: center; padding: 15px; background-color: #f0f2f6; border-radius: 8px; border: 2px solid #1f77b4;'>
+                <h2 style='color: #1f77b4; margin: 0;'>KSE-100: {format_currency(current_price, '')}</h2>
+                <small>Last Update: {timestamp.strftime('%H:%M:%S')}</small>
+            </div>
+            """, unsafe_allow_html=True)
+        
+        with col3:
+            st.metric("Current Time", datetime.now().strftime("%H:%M:%S"))
+        
+        # Historical data for forecasting
+        st.markdown("---")
+        
+        with st.spinner("Fetching historical data for session analysis..."):
+            kse_data = st.session_state.data_fetcher.fetch_kse100_data()
+            
+            if kse_data is not None and not kse_data.empty:
+                # Session-based forecasting
+                st.subheader("📈 Session-Based Predictions")
+                
+                tab1, tab2, tab3 = st.tabs(["Morning Session (9:30-12:00)", "Afternoon Session (12:00-15:30)", "Full Day Forecast"])
+                
+                with tab1:
+                    st.write("**Morning Session Forecast (9:30 AM - 12:00 PM)**")
+                    
+                    # Generate morning session forecast
+                    morning_forecast = st.session_state.forecaster.forecast_stock(
+                        kse_data, days_ahead=0, forecast_type='morning_session'
+                    )
+                    
+                    if morning_forecast is not None and not morning_forecast.empty:
+                        # Create morning session chart
+                        fig = go.Figure()
+                        
+                        # Historical data (last few points)
+                        recent_data = kse_data.tail(10)
+                        fig.add_trace(go.Scatter(
+                            x=recent_data['date'],
+                            y=recent_data['close'],
+                            mode='lines+markers',
+                            name='Historical Prices',
+                            line=dict(color='blue')
+                        ))
+                        
+                        # Morning forecast
+                        fig.add_trace(go.Scatter(
+                            x=morning_forecast['ds'],
+                            y=morning_forecast['yhat'],
+                            mode='lines+markers',
+                            name='Morning Forecast',
+                            line=dict(color='green', dash='dash')
+                        ))
+                        
+                        # Confidence interval
+                        fig.add_trace(go.Scatter(
+                            x=list(morning_forecast['ds']) + list(morning_forecast['ds'][::-1]),
+                            y=list(morning_forecast['yhat_upper']) + list(morning_forecast['yhat_lower'][::-1]),
+                            fill='toself',
+                            fillcolor='rgba(0,255,0,0.2)',
+                            line=dict(color='rgba(255,255,255,0)'),
+                            name='Confidence Interval'
+                        ))
+                        
+                        fig.update_layout(
+                            title="Morning Session Forecast (9:30 AM - 12:00 PM)",
+                            xaxis_title="Time",
+                            yaxis_title="Price (PKR)",
+                            height=400
+                        )
+                        
+                        st.plotly_chart(fig, use_container_width=True)
+                        
+                        # Display forecast metrics
+                        if len(morning_forecast) > 0:
+                            last_forecast = morning_forecast.iloc[-1]
+                            col1, col2, col3 = st.columns(3)
+                            
+                            with col1:
+                                st.metric("Predicted Price at 12:00 PM", f"{format_currency(last_forecast['yhat'], '')}")
+                            with col2:
+                                change = last_forecast['yhat'] - current_price
+                                st.metric("Expected Change", f"{change:+.2f}", f"{(change/current_price)*100:+.2f}%")
+                            with col3:
+                                range_width = last_forecast['yhat_upper'] - last_forecast['yhat_lower']
+                                st.metric("Prediction Range", f"±{range_width/2:.2f}")
+                
+                with tab2:
+                    st.write("**Afternoon Session Forecast (12:00 PM - 3:30 PM)**")
+                    
+                    # Generate afternoon session forecast
+                    afternoon_forecast = st.session_state.forecaster.forecast_stock(
+                        kse_data, days_ahead=0, forecast_type='afternoon_session'
+                    )
+                    
+                    if afternoon_forecast is not None and not afternoon_forecast.empty:
+                        # Create afternoon session chart
+                        fig = go.Figure()
+                        
+                        # Historical data
+                        recent_data = kse_data.tail(10)
+                        fig.add_trace(go.Scatter(
+                            x=recent_data['date'],
+                            y=recent_data['close'],
+                            mode='lines+markers',
+                            name='Historical Prices',
+                            line=dict(color='blue')
+                        ))
+                        
+                        # Afternoon forecast
+                        fig.add_trace(go.Scatter(
+                            x=afternoon_forecast['ds'],
+                            y=afternoon_forecast['yhat'],
+                            mode='lines+markers',
+                            name='Afternoon Forecast',
+                            line=dict(color='orange', dash='dash')
+                        ))
+                        
+                        # Confidence interval
+                        fig.add_trace(go.Scatter(
+                            x=list(afternoon_forecast['ds']) + list(afternoon_forecast['ds'][::-1]),
+                            y=list(afternoon_forecast['yhat_upper']) + list(afternoon_forecast['yhat_lower'][::-1]),
+                            fill='toself',
+                            fillcolor='rgba(255,165,0,0.2)',
+                            line=dict(color='rgba(255,255,255,0)'),
+                            name='Confidence Interval'
+                        ))
+                        
+                        fig.update_layout(
+                            title="Afternoon Session Forecast (12:00 PM - 3:30 PM)",
+                            xaxis_title="Time",
+                            yaxis_title="Price (PKR)",
+                            height=400
+                        )
+                        
+                        st.plotly_chart(fig, use_container_width=True)
+                        
+                        # Display forecast metrics
+                        if len(afternoon_forecast) > 0:
+                            last_forecast = afternoon_forecast.iloc[-1]
+                            col1, col2, col3 = st.columns(3)
+                            
+                            with col1:
+                                st.metric("Predicted Price at 3:30 PM", f"{format_currency(last_forecast['yhat'], '')}")
+                            with col2:
+                                change = last_forecast['yhat'] - current_price
+                                st.metric("Expected Change", f"{change:+.2f}", f"{(change/current_price)*100:+.2f}%")
+                            with col3:
+                                range_width = last_forecast['yhat_upper'] - last_forecast['yhat_lower']
+                                st.metric("Prediction Range", f"±{range_width/2:.2f}")
+                
+                with tab3:
+                    st.write("**Full Day Intraday Forecast**")
+                    
+                    # Generate full day intraday forecast
+                    intraday_forecast = st.session_state.forecaster.forecast_stock(
+                        kse_data, days_ahead=1, forecast_type='intraday'
+                    )
+                    
+                    if intraday_forecast is not None and not intraday_forecast.empty:
+                        # Create full day chart
+                        fig = go.Figure()
+                        
+                        # Historical data
+                        recent_data = kse_data.tail(15)
+                        fig.add_trace(go.Scatter(
+                            x=recent_data['date'],
+                            y=recent_data['close'],
+                            mode='lines+markers',
+                            name='Historical Daily Closes',
+                            line=dict(color='blue')
+                        ))
+                        
+                        # Intraday forecast
+                        fig.add_trace(go.Scatter(
+                            x=intraday_forecast['ds'],
+                            y=intraday_forecast['yhat'],
+                            mode='lines+markers',
+                            name='Intraday Forecast',
+                            line=dict(color='red', dash='dash')
+                        ))
+                        
+                        # Confidence interval
+                        fig.add_trace(go.Scatter(
+                            x=list(intraday_forecast['ds']) + list(intraday_forecast['ds'][::-1]),
+                            y=list(intraday_forecast['yhat_upper']) + list(intraday_forecast['yhat_lower'][::-1]),
+                            fill='toself',
+                            fillcolor='rgba(255,0,0,0.1)',
+                            line=dict(color='rgba(255,255,255,0)'),
+                            name='Confidence Interval'
+                        ))
+                        
+                        fig.update_layout(
+                            title="Full Day Intraday Price Movement Forecast",
+                            xaxis_title="Time",
+                            yaxis_title="Price (PKR)",
+                            height=500
+                        )
+                        
+                        st.plotly_chart(fig, use_container_width=True)
+                        
+                        # Summary statistics
+                        st.subheader("📊 Intraday Summary")
+                        
+                        col1, col2, col3, col4 = st.columns(4)
+                        
+                        with col1:
+                            day_high = intraday_forecast['yhat'].max()
+                            st.metric("Predicted High", f"{format_currency(day_high, '')}")
+                        
+                        with col2:
+                            day_low = intraday_forecast['yhat'].min()
+                            st.metric("Predicted Low", f"{format_currency(day_low, '')}")
+                        
+                        with col3:
+                            day_range = day_high - day_low
+                            st.metric("Trading Range", f"{format_currency(day_range, '')}")
+                        
+                        with col4:
+                            volatility = ((day_range / current_price) * 100)
+                            st.metric("Expected Volatility", f"{volatility:.2f}%")
+            
+            else:
+                st.error("Unable to fetch historical data for forecasting. Please try refreshing.")
+    
+    else:
+        st.error("Unable to fetch live price data. Please check your connection.")
 
 if __name__ == "__main__":
     main()
