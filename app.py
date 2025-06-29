@@ -11,6 +11,7 @@ from data_fetcher import DataFetcher
 from forecasting import StockForecaster
 from visualization import ChartVisualizer
 from utils import export_to_csv, format_currency
+from database import get_database_manager
 
 # Page configuration
 st.set_page_config(
@@ -27,6 +28,8 @@ if 'forecaster' not in st.session_state:
     st.session_state.forecaster = StockForecaster()
 if 'visualizer' not in st.session_state:
     st.session_state.visualizer = ChartVisualizer()
+if 'db_manager' not in st.session_state:
+    st.session_state.db_manager = get_database_manager()
 if 'last_update' not in st.session_state:
     st.session_state.last_update = None
 if 'kse_data' not in st.session_state:
@@ -59,7 +62,7 @@ def main():
         # Analysis type selection
         analysis_type = st.selectbox(
             "Select Analysis Type",
-            ["KSE-100 Index", "Individual Companies"],
+            ["KSE-100 Index", "Individual Companies", "Database Overview"],
             key="analysis_type"
         )
         
@@ -98,8 +101,10 @@ def main():
     # Main content area
     if analysis_type == "KSE-100 Index":
         display_kse100_analysis(forecast_type, days_ahead, custom_date)
-    else:
+    elif analysis_type == "Individual Companies":
         display_company_analysis(selected_company, forecast_type, days_ahead, custom_date)
+    else:
+        display_database_overview()
 
 def display_kse100_analysis(forecast_type, days_ahead, custom_date):
     """Display KSE-100 index analysis and forecasting"""
@@ -123,7 +128,26 @@ def display_kse100_analysis(forecast_type, days_ahead, custom_date):
     # Fetch KSE-100 data
     with st.spinner("Fetching KSE-100 data..."):
         try:
-            kse_data = st.session_state.data_fetcher.fetch_kse100_data()
+            kse_data = None
+            
+            # First try to get recent data from database
+            db_data = st.session_state.db_manager.get_stock_data('KSE-100', days=30)
+            
+            # Check if we need fresh data (older than 5 minutes)
+            need_fresh_data = True
+            if db_data is not None and not db_data.empty:
+                latest_db_date = pd.to_datetime(db_data['date'].max())
+                if (datetime.now() - latest_db_date).total_seconds() < 300:  # 5 minutes
+                    need_fresh_data = False
+                    kse_data = db_data
+            
+            # Fetch fresh data if needed
+            if need_fresh_data:
+                kse_data = st.session_state.data_fetcher.fetch_kse100_data()
+                if kse_data is not None and not kse_data.empty:
+                    # Store in database
+                    st.session_state.db_manager.store_stock_data('KSE-100', 'KSE-100 Index', kse_data)
+            
             if kse_data is not None and not kse_data.empty:
                 st.session_state.kse_data = kse_data
                 st.session_state.last_update = datetime.now()
@@ -239,7 +263,27 @@ def display_company_analysis(selected_company, forecast_type, days_ahead, custom
     # Fetch company data
     with st.spinner(f"Fetching {selected_company} data..."):
         try:
-            company_data = st.session_state.data_fetcher.fetch_company_data(selected_company)
+            company_data = None
+            company_symbol = st.session_state.data_fetcher.get_kse100_companies()[selected_company]
+            
+            # First try to get recent data from database
+            db_data = st.session_state.db_manager.get_stock_data(company_symbol, days=30)
+            
+            # Check if we need fresh data (older than 5 minutes)
+            need_fresh_data = True
+            if db_data is not None and not db_data.empty:
+                latest_db_date = pd.to_datetime(db_data['date'].max())
+                if (datetime.now() - latest_db_date).total_seconds() < 300:  # 5 minutes
+                    need_fresh_data = False
+                    company_data = db_data
+            
+            # Fetch fresh data if needed
+            if need_fresh_data:
+                company_data = st.session_state.data_fetcher.fetch_company_data(selected_company)
+                if company_data is not None and not company_data.empty:
+                    # Store in database
+                    st.session_state.db_manager.store_stock_data(company_symbol, selected_company, company_data)
+            
             if company_data is not None and not company_data.empty:
                 st.session_state.companies_data[selected_company] = company_data
                 
@@ -327,6 +371,113 @@ def display_company_analysis(selected_company, forecast_type, days_ahead, custom
                 
         except Exception as e:
             st.error(f"Data fetching error: {str(e)}")
+
+def display_database_overview():
+    """Display database overview and management tools"""
+    
+    st.subheader("🗄️ Database Overview")
+    st.markdown("Manage and view stored stock data, forecasts, and system information.")
+    
+    # Database statistics
+    col1, col2, col3 = st.columns(3)
+    
+    with col1:
+        st.metric("Database Status", "Connected ✅")
+    
+    with col2:
+        # Get market summary from database
+        try:
+            market_data = st.session_state.db_manager.get_market_summary_from_db()
+            st.metric("Stored Symbols", len(market_data))
+        except Exception as e:
+            st.metric("Stored Symbols", "Error")
+    
+    with col3:
+        st.metric("Data Source", "PostgreSQL")
+    
+    st.markdown("---")
+    
+    # Data management options
+    tab1, tab2, tab3 = st.tabs(["📊 Stored Data", "🔮 Forecast History", "⚙️ Settings"])
+    
+    with tab1:
+        st.subheader("Historical Stock Data")
+        
+        # Show available symbols
+        try:
+            market_data = st.session_state.db_manager.get_market_summary_from_db()
+            if market_data:
+                df_market = pd.DataFrame([
+                    {
+                        'Symbol': symbol,
+                        'Latest Price': f"PKR {data['current_price']:,.2f}",
+                        'Last Updated': data['date'].strftime('%Y-%m-%d %H:%M'),
+                        'Volume': f"{data['volume']:,.0f}"
+                    }
+                    for symbol, data in market_data.items()
+                ])
+                st.dataframe(df_market, use_container_width=True)
+            else:
+                st.info("No historical data found in database. Start by fetching some stock data.")
+        except Exception as e:
+            st.error(f"Error retrieving market data: {str(e)}")
+    
+    with tab2:
+        st.subheader("Forecast History")
+        
+        # Select symbol for forecast history
+        try:
+            market_data = st.session_state.db_manager.get_market_summary_from_db()
+            if market_data:
+                selected_symbol = st.selectbox(
+                    "Select Symbol for Forecast History",
+                    list(market_data.keys())
+                )
+                
+                if st.button("Load Forecast History"):
+                    forecast_history = st.session_state.db_manager.get_forecast_history(selected_symbol, days=30)
+                    if forecast_history is not None and not forecast_history.empty:
+                        st.dataframe(forecast_history, use_container_width=True)
+                    else:
+                        st.info(f"No forecast history found for {selected_symbol}")
+            else:
+                st.info("No symbols available. Generate some forecasts first.")
+        except Exception as e:
+            st.error(f"Error retrieving forecast history: {str(e)}")
+    
+    with tab3:
+        st.subheader("Database Settings")
+        
+        # Database connection info
+        st.write("**Connection Information:**")
+        try:
+            import os
+            db_host = os.getenv('PGHOST', 'Not set')
+            db_port = os.getenv('PGPORT', 'Not set')
+            db_name = os.getenv('PGDATABASE', 'Not set')
+            
+            st.code(f"""
+Host: {db_host}
+Port: {db_port}
+Database: {db_name}
+            """)
+        except Exception as e:
+            st.error(f"Error retrieving connection info: {str(e)}")
+        
+        # Data management actions
+        st.write("**Data Management:**")
+        
+        col1, col2 = st.columns(2)
+        
+        with col1:
+            if st.button("🗑️ Clear Old Data", help="Remove data older than 30 days"):
+                # This would implement data cleanup
+                st.info("Data cleanup feature - implementation needed")
+        
+        with col2:
+            if st.button("📊 Database Stats", help="Show detailed database statistics"):
+                # This would show detailed stats
+                st.info("Database statistics feature - implementation needed")
 
 if __name__ == "__main__":
     main()

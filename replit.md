@@ -14,7 +14,7 @@ The application follows a modular architecture with clear separation of concerns
 - **Visualization Layer**: Interactive charts using Plotly
 - **Utilities**: Helper functions for data formatting and export
 
-The architecture supports real-time data processing with caching mechanisms to optimize performance and reduce API calls.
+The architecture supports real-time data processing with PostgreSQL database persistence and intelligent caching mechanisms to optimize performance and reduce API calls.
 
 ## Key Components
 
@@ -59,6 +59,17 @@ The architecture supports real-time data processing with caching mechanisms to o
   - Percentage formatting with configurable decimal places
   - Volume formatting with appropriate units
   - CSV export capabilities
+
+### 6. Database Module (`database.py`)
+- **Purpose**: PostgreSQL integration for data persistence
+- **Technology**: SQLAlchemy ORM with PostgreSQL backend
+- **Key Features**:
+  - Historical stock data storage with automatic timestamps
+  - Forecast predictions tracking with model attribution
+  - User settings and preferences persistence
+  - Market events logging for analysis
+  - Intelligent caching with 5-minute refresh intervals
+  - Database management tools and overview dashboard
 
 ## Data Flow
 
@@ -112,7 +123,10 @@ The application is designed for deployment on cloud platforms with the following
 - Lazy loading of forecasting models
 
 ## Changelog
-- June 29, 2025. Initial setup
+- June 29, 2025. Initial setup with complete PSX forecasting dashboard
+- June 29, 2025. Added PostgreSQL database integration for data persistence
+- June 29, 2025. Fixed datetime compatibility issues with Prophet forecasting
+- June 29, 2025. Added database overview dashboard for data management
 
 ## User Preferences
 
