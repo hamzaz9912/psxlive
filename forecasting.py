@@ -45,9 +45,9 @@ class StockForecaster:
                 holidays_prior_scale=10.0,     # Flexibility of holiday effects
                 seasonality_mode='multiplicative',  # Better for financial data
                 interval_width=0.8,            # 80% confidence intervals
-                daily_seasonality=True,        # Capture daily patterns
-                weekly_seasonality=True,       # Capture weekly patterns
-                yearly_seasonality=False       # Not enough data for yearly patterns
+                daily_seasonality='auto',      # Capture daily patterns
+                weekly_seasonality='auto',     # Capture weekly patterns
+                yearly_seasonality='auto'      # Auto-detect yearly patterns
             )
             
             # Fit the model
@@ -57,7 +57,7 @@ class StockForecaster:
             if days_ahead == 0:
                 # For intraday forecasting, predict end of current day
                 future_date = datetime.now().replace(hour=23, minute=59, second=59, microsecond=0)
-                future = pd.DataFrame({'ds': [future_date]})
+                future = pd.DataFrame({'ds': [pd.Timestamp(future_date)]})
             else:
                 # For multi-day forecasting
                 future = model.make_future_dataframe(periods=days_ahead, freq='D')
@@ -117,8 +117,9 @@ class StockForecaster:
             ma = historical_data['close'].rolling(window=window).mean().iloc[-1]
             
             # Create forecast dataframe
+            last_date = pd.Timestamp(historical_data['date'].max())
             future_dates = pd.date_range(
-                start=historical_data['date'].max() + timedelta(days=1),
+                start=last_date + pd.Timedelta(days=1),
                 periods=days_ahead,
                 freq='D'
             )
@@ -155,8 +156,9 @@ class StockForecaster:
             future_y = slope * future_x + intercept
             
             # Create forecast dataframe
+            last_date = pd.Timestamp(historical_data['date'].max())
             future_dates = pd.date_range(
-                start=historical_data['date'].max() + timedelta(days=1),
+                start=last_date + pd.Timedelta(days=1),
                 periods=days_ahead,
                 freq='D'
             )
