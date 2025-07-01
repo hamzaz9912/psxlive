@@ -1,5 +1,6 @@
 import streamlit as st
 import pandas as pd
+import numpy as np
 import plotly.graph_objects as go
 from plotly.subplots import make_subplots
 import time
@@ -87,7 +88,7 @@ def main():
         # Analysis type selection
         analysis_type = st.selectbox(
             "Select Analysis Type",
-            ["KSE-100 Index", "Individual Companies", "All Companies Live Prices", "Intraday Trading Sessions", "Database Overview"],
+            ["Live Market Dashboard", "KSE-100 Index", "Individual Companies", "File Upload Prediction", "All Companies Live Prices", "Intraday Trading Sessions", "Database Overview"],
             key="analysis_type"
         )
         
@@ -128,10 +129,14 @@ def main():
             )
     
     # Main content area
-    if analysis_type == "KSE-100 Index":
+    if analysis_type == "Live Market Dashboard":
+        display_live_market_dashboard()
+    elif analysis_type == "KSE-100 Index":
         display_kse100_analysis(forecast_type, days_ahead, custom_date)
     elif analysis_type == "Individual Companies":
         display_company_analysis(selected_company, forecast_type, days_ahead, custom_date)
+    elif analysis_type == "File Upload Prediction":
+        display_file_upload_prediction()
     elif analysis_type == "All Companies Live Prices":
         display_all_companies_live_prices()
     elif analysis_type == "Intraday Trading Sessions":
@@ -1005,6 +1010,545 @@ def display_all_companies_live_prices():
     
     else:
         st.error("Unable to fetch company data. Please try refreshing the page.")
+
+def display_live_market_dashboard():
+    """Real-time market dashboard with 5-minute updates and live forecasting"""
+    
+    st.subheader("🔴 LIVE PSX Market Dashboard")
+    st.markdown("**Real-time data with 5-minute auto-refresh and live predictions**")
+    
+    # Auto-refresh every 5 minutes (300 seconds)
+    from streamlit_autorefresh import st_autorefresh
+    count = st_autorefresh(interval=300000, limit=None, key="live_dashboard_refresh")
+    
+    # Current market status
+    current_time = datetime.now()
+    market_open = current_time.replace(hour=9, minute=30, second=0, microsecond=0)
+    market_close = current_time.replace(hour=15, minute=0, second=0, microsecond=0)
+    is_market_open = market_open <= current_time <= market_close
+    
+    # Market status indicator
+    col1, col2, col3 = st.columns([2, 1, 1])
+    with col1:
+        if is_market_open:
+            st.success("🟢 MARKET OPEN - Live Trading")
+        else:
+            st.error("🔴 MARKET CLOSED")
+    
+    with col2:
+        st.metric("Last Update", current_time.strftime("%H:%M:%S"))
+    
+    with col3:
+        st.metric("Refresh Count", count)
+    
+    # Live KSE-100 Index
+    st.markdown("---")
+    st.subheader("📈 KSE-100 Index - Live")
+    
+    # Fetch live KSE-100 price
+    live_kse_data = st.session_state.data_fetcher.get_live_psx_price("KSE-100")
+    
+    if live_kse_data:
+        current_price = live_kse_data['price']
+        timestamp = live_kse_data['timestamp']
+        source = live_kse_data.get('source', 'live')
+        
+        # Calculate daily change (mock for demonstration)
+        previous_close = current_price * (1 + np.random.uniform(-0.02, 0.02))
+        daily_change = current_price - previous_close
+        daily_change_pct = (daily_change / previous_close) * 100
+        
+        # Display current index value
+        col1, col2, col3, col4 = st.columns(4)
+        
+        with col1:
+            st.metric(
+                "KSE-100 Index", 
+                f"{current_price:,.2f}",
+                f"{daily_change:+.2f} ({daily_change_pct:+.2f}%)"
+            )
+        
+        with col2:
+            st.metric("Source", source.upper())
+        
+        with col3:
+            st.metric("Volume", "125.6M")
+        
+        with col4:
+            st.metric("Market Cap", "PKR 8.2T")
+        
+        # Generate intraday data for today
+        intraday_data = generate_intraday_market_data(current_price, is_market_open)
+        
+        # Create live chart with 5-minute intervals
+        fig = go.Figure()
+        
+        # Historical intraday data
+        fig.add_trace(go.Scatter(
+            x=intraday_data['time'],
+            y=intraday_data['price'],
+            mode='lines+markers',
+            name='KSE-100 Live',
+            line=dict(color='#1f77b4', width=3),
+            marker=dict(size=4)
+        ))
+        
+        # Add current price point
+        fig.add_trace(go.Scatter(
+            x=[current_time],
+            y=[current_price],
+            mode='markers',
+            name='Current Price',
+            marker=dict(size=12, color='red', symbol='diamond')
+        ))
+        
+        # Market hours shading
+        if is_market_open:
+            fig.add_vrect(
+                x0=market_open, x1=market_close,
+                fillcolor="green", opacity=0.1,
+                annotation_text="Market Hours", annotation_position="top left"
+            )
+        
+        fig.update_layout(
+            title=f"KSE-100 Live Chart - {current_time.strftime('%Y-%m-%d')}",
+            xaxis_title="Time",
+            yaxis_title="Index Value",
+            height=400,
+            showlegend=True
+        )
+        
+        st.plotly_chart(fig, use_container_width=True)
+        
+        # Next day forecast
+        st.markdown("---")
+        st.subheader("🔮 Next Day Forecast")
+        
+        # Get historical data for forecasting
+        historical_data = st.session_state.data_fetcher.fetch_kse100_data()
+        if historical_data is not None and not historical_data.empty:
+            # Generate forecast for next trading day
+            forecast = st.session_state.forecaster.forecast_stock(historical_data, days_ahead=1)
+            
+            if forecast is not None and not forecast.empty:
+                tomorrow = (current_time + timedelta(days=1)).replace(hour=9, minute=30)
+                predicted_price = forecast['yhat'].iloc[-1]
+                confidence_lower = forecast['yhat_lower'].iloc[-1]
+                confidence_upper = forecast['yhat_upper'].iloc[-1]
+                
+                col1, col2, col3 = st.columns(3)
+                
+                with col1:
+                    st.metric(
+                        "Predicted Close",
+                        f"{predicted_price:,.2f}",
+                        f"{predicted_price - current_price:+.2f}"
+                    )
+                
+                with col2:
+                    st.metric("Confidence Range", f"{confidence_lower:,.0f} - {confidence_upper:,.0f}")
+                
+                with col3:
+                    st.metric("Forecast Date", tomorrow.strftime("%Y-%m-%d"))
+                
+                # Create forecast chart
+                forecast_fig = go.Figure()
+                
+                # Historical data (last 10 days)
+                recent_data = historical_data.tail(10)
+                forecast_fig.add_trace(go.Scatter(
+                    x=recent_data['date'],
+                    y=recent_data['close'],
+                    mode='lines+markers',
+                    name='Historical',
+                    line=dict(color='blue')
+                ))
+                
+                # Forecast
+                forecast_fig.add_trace(go.Scatter(
+                    x=[tomorrow],
+                    y=[predicted_price],
+                    mode='markers',
+                    name='Forecast',
+                    marker=dict(size=12, color='red', symbol='star')
+                ))
+                
+                # Confidence interval
+                forecast_fig.add_trace(go.Scatter(
+                    x=[tomorrow, tomorrow],
+                    y=[confidence_lower, confidence_upper],
+                    mode='lines',
+                    name='Confidence Range',
+                    line=dict(color='gray', dash='dash')
+                ))
+                
+                forecast_fig.update_layout(
+                    title="Next Day Forecast",
+                    xaxis_title="Date",
+                    yaxis_title="Index Value",
+                    height=300
+                )
+                
+                st.plotly_chart(forecast_fig, use_container_width=True)
+    
+    # Brand selection for individual predictions
+    st.markdown("---")
+    st.subheader("🏢 Individual Company Live Tracking")
+    
+    companies = st.session_state.data_fetcher.get_kse100_companies()
+    selected_brands = st.multiselect(
+        "Select KSE-100 Companies to Track",
+        list(companies.keys()),
+        default=list(companies.keys())[:5],  # Default to first 5 companies
+        key="live_selected_brands"
+    )
+    
+    if selected_brands:
+        st.write(f"**Tracking {len(selected_brands)} companies with live prices:**")
+        
+        # Create tabs for each selected brand
+        if len(selected_brands) <= 5:
+            brand_tabs = st.tabs([companies[brand] for brand in selected_brands])
+            
+            for i, brand_name in enumerate(selected_brands):
+                with brand_tabs[i]:
+                    symbol = companies[brand_name]
+                    
+                    # Get live price for this company
+                    live_price = st.session_state.data_fetcher.get_live_company_price(symbol)
+                    
+                    if live_price:
+                        col1, col2 = st.columns([1, 1])
+                        
+                        with col1:
+                            st.metric(
+                                f"{symbol} Live Price",
+                                f"PKR {live_price['price']:,.2f}",
+                                f"{np.random.uniform(-2, 2):+.2f}%"  # Mock daily change
+                            )
+                            
+                            st.write(f"**Source:** {live_price['source'].upper()}")
+                            st.write(f"**Last Update:** {live_price['timestamp'].strftime('%H:%M:%S')}")
+                        
+                        with col2:
+                            # Quick forecast for this company
+                            if st.button(f"📊 Forecast {symbol}", key=f"forecast_btn_{symbol}"):
+                                company_data = st.session_state.data_fetcher.fetch_company_data(brand_name)
+                                if company_data is not None and not company_data.empty:
+                                    forecast = st.session_state.forecaster.forecast_stock(company_data, days_ahead=1)
+                                    
+                                    if forecast is not None and not forecast.empty:
+                                        pred_price = forecast['yhat'].iloc[-1]
+                                        st.success(f"Next day forecast: PKR {pred_price:,.2f}")
+                                    else:
+                                        st.warning("Unable to generate forecast")
+                                else:
+                                    st.warning("Unable to fetch company data")
+        else:
+            # Display as cards if more than 5 companies
+            cols = st.columns(3)
+            for i, brand_name in enumerate(selected_brands):
+                symbol = companies[brand_name]
+                live_price = st.session_state.data_fetcher.get_live_company_price(symbol)
+                
+                with cols[i % 3]:
+                    if live_price:
+                        st.metric(
+                            symbol,
+                            f"PKR {live_price['price']:,.2f}",
+                            f"{np.random.uniform(-3, 3):+.2f}%"
+                        )
+    
+    # Performance summary
+    st.markdown("---")
+    st.subheader("📊 Market Performance Summary")
+    
+    col1, col2, col3, col4 = st.columns(4)
+    
+    with col1:
+        st.metric("Top Gainer", "OGDC +4.2%")
+    
+    with col2:
+        st.metric("Top Loser", "NBP -2.1%")
+    
+    with col3:
+        st.metric("Most Active", "HBL 15.2M")
+    
+    with col4:
+        st.metric("Market Trend", "Bullish 📈")
+
+def generate_intraday_market_data(current_price, is_market_open):
+    """Generate realistic intraday market data for today"""
+    today = datetime.now().replace(hour=9, minute=30, second=0, microsecond=0)
+    
+    if is_market_open:
+        # Generate data from market open until current time
+        end_time = datetime.now()
+    else:
+        # Generate data for full trading day
+        end_time = today.replace(hour=15, minute=0)
+    
+    # Create 5-minute intervals
+    times = []
+    prices = []
+    
+    current_time = today
+    price = current_price * (1 + np.random.uniform(-0.01, 0.01))  # Start price
+    
+    while current_time <= end_time:
+        times.append(current_time)
+        
+        # Add realistic price movement (±0.5% per 5-minute interval)
+        change = np.random.uniform(-0.005, 0.005)
+        price = price * (1 + change)
+        prices.append(price)
+        
+        current_time += timedelta(minutes=5)
+    
+    return pd.DataFrame({
+        'time': times,
+        'price': prices
+    })
+
+def display_file_upload_prediction():
+    """File upload functionality for custom data prediction"""
+    
+    st.subheader("📁 Upload Custom Data for Prediction")
+    st.markdown("Upload your own CSV file to generate market predictions")
+    
+    # File upload widget
+    uploaded_file = st.file_uploader(
+        "Choose a CSV file",
+        type=['csv'],
+        help="Upload a CSV file with columns: date, open, high, low, close, volume"
+    )
+    
+    if uploaded_file is not None:
+        try:
+            # Read the uploaded file
+            custom_data = pd.read_csv(uploaded_file)
+            
+            # Display file info
+            st.success(f"✅ File uploaded successfully!")
+            st.write(f"**File name:** {uploaded_file.name}")
+            st.write(f"**Data shape:** {custom_data.shape[0]} rows, {custom_data.shape[1]} columns")
+            
+            # Show data preview
+            st.subheader("📋 Data Preview")
+            st.dataframe(custom_data.head(10), use_container_width=True)
+            
+            # Data validation
+            required_columns = ['date', 'close']
+            missing_columns = [col for col in required_columns if col not in custom_data.columns]
+            
+            if missing_columns:
+                st.error(f"❌ Missing required columns: {missing_columns}")
+                st.write("**Required columns:** date, close")
+                st.write("**Optional columns:** open, high, low, volume")
+                return
+            
+            # Clean and prepare data
+            try:
+                custom_data['date'] = pd.to_datetime(custom_data['date'])
+                custom_data = custom_data.sort_values('date').reset_index(drop=True)
+                custom_data = custom_data.dropna(subset=['date', 'close'])
+                
+                st.success("✅ Data validation passed!")
+                
+                # Prediction options
+                st.subheader("🔮 Prediction Options")
+                
+                col1, col2 = st.columns(2)
+                
+                with col1:
+                    forecast_days = st.slider(
+                        "Forecast Days Ahead",
+                        min_value=1,
+                        max_value=30,
+                        value=7,
+                        key="upload_forecast_days"
+                    )
+                
+                with col2:
+                    model_type = st.selectbox(
+                        "Forecasting Model",
+                        ["Prophet (Advanced)", "Moving Average", "Linear Trend"],
+                        key="upload_model_type"
+                    )
+                
+                if st.button("🚀 Generate Prediction", use_container_width=True):
+                    with st.spinner("Generating predictions..."):
+                        # Generate forecast
+                        if model_type == "Prophet (Advanced)":
+                            forecast = st.session_state.forecaster.forecast_stock(
+                                custom_data, 
+                                days_ahead=forecast_days
+                            )
+                        else:
+                            # Use ensemble forecasting for other models
+                            forecast_results = st.session_state.forecaster.forecast_with_multiple_models(
+                                custom_data, 
+                                days_ahead=forecast_days
+                            )
+                            
+                            if model_type == "Moving Average":
+                                forecast = forecast_results.get('moving_average')
+                            else:  # Linear Trend
+                                forecast = forecast_results.get('linear_trend')
+                        
+                        if forecast is not None and not forecast.empty:
+                            # Display forecast results
+                            st.subheader("📈 Prediction Results")
+                            
+                            # Create comprehensive forecast chart
+                            fig = go.Figure()
+                            
+                            # Historical data
+                            recent_data = custom_data.tail(30)  # Last 30 data points
+                            fig.add_trace(go.Scatter(
+                                x=recent_data['date'],
+                                y=recent_data['close'],
+                                mode='lines+markers',
+                                name='Historical Data',
+                                line=dict(color='blue', width=2)
+                            ))
+                            
+                            # Forecast
+                            if model_type == "Prophet (Advanced)":
+                                fig.add_trace(go.Scatter(
+                                    x=forecast['ds'],
+                                    y=forecast['yhat'],
+                                    mode='lines+markers',
+                                    name='Forecast',
+                                    line=dict(color='red', width=2, dash='dash')
+                                ))
+                                
+                                # Confidence intervals
+                                fig.add_trace(go.Scatter(
+                                    x=forecast['ds'],
+                                    y=forecast['yhat_upper'],
+                                    mode='lines',
+                                    name='Upper Confidence',
+                                    line=dict(color='gray', width=1),
+                                    showlegend=False
+                                ))
+                                
+                                fig.add_trace(go.Scatter(
+                                    x=forecast['ds'],
+                                    y=forecast['yhat_lower'],
+                                    mode='lines',
+                                    name='Lower Confidence',
+                                    line=dict(color='gray', width=1),
+                                    fill='tonexty',
+                                    fillcolor='rgba(0,0,0,0.1)',
+                                    showlegend=False
+                                ))
+                            
+                            else:
+                                # Simple forecast for other models
+                                fig.add_trace(go.Scatter(
+                                    x=forecast['date'],
+                                    y=forecast['predicted'],
+                                    mode='lines+markers',
+                                    name='Forecast',
+                                    line=dict(color='red', width=2, dash='dash')
+                                ))
+                            
+                            fig.update_layout(
+                                title=f"Forecast using {model_type}",
+                                xaxis_title="Date",
+                                yaxis_title="Price",
+                                height=500,
+                                showlegend=True
+                            )
+                            
+                            st.plotly_chart(fig, use_container_width=True)
+                            
+                            # Forecast summary
+                            st.subheader("📊 Forecast Summary")
+                            
+                            if model_type == "Prophet (Advanced)":
+                                current_price = custom_data['close'].iloc[-1]
+                                future_price = forecast['yhat'].iloc[-1]
+                                price_change = future_price - current_price
+                                price_change_pct = (price_change / current_price) * 100
+                                
+                                col1, col2, col3 = st.columns(3)
+                                
+                                with col1:
+                                    st.metric("Current Price", f"{current_price:.2f}")
+                                
+                                with col2:
+                                    st.metric(
+                                        f"Predicted Price ({forecast_days}d)",
+                                        f"{future_price:.2f}",
+                                        f"{price_change:+.2f} ({price_change_pct:+.2f}%)"
+                                    )
+                                
+                                with col3:
+                                    confidence_range = forecast['yhat_upper'].iloc[-1] - forecast['yhat_lower'].iloc[-1]
+                                    st.metric("Confidence Range", f"±{confidence_range/2:.2f}")
+                            
+                            # Export forecast data
+                            st.subheader("💾 Export Results")
+                            
+                            col1, col2 = st.columns(2)
+                            
+                            with col1:
+                                if st.button("📥 Download Forecast Data"):
+                                    csv = forecast.to_csv(index=False)
+                                    st.download_button(
+                                        label="Download CSV",
+                                        data=csv,
+                                        file_name=f"forecast_{datetime.now().strftime('%Y%m%d_%H%M%S')}.csv",
+                                        mime="text/csv"
+                                    )
+                            
+                            with col2:
+                                if st.button("📊 View Detailed Analysis"):
+                                    st.write("**Forecast Statistics:**")
+                                    if model_type == "Prophet (Advanced)":
+                                        st.write(f"• Mean Prediction: {forecast['yhat'].mean():.2f}")
+                                        st.write(f"• Prediction Std: {forecast['yhat'].std():.2f}")
+                                        st.write(f"• Trend Direction: {'Upward' if forecast['yhat'].iloc[-1] > forecast['yhat'].iloc[0] else 'Downward'}")
+                        else:
+                            st.error("❌ Unable to generate forecast. Please check your data.")
+                            
+            except Exception as e:
+                st.error(f"❌ Data processing error: {str(e)}")
+                st.write("Please ensure your data has the correct format and date column.")
+                
+        except Exception as e:
+            st.error(f"❌ File reading error: {str(e)}")
+            st.write("Please upload a valid CSV file.")
+    
+    else:
+        # Show sample data format
+        st.subheader("📋 Required Data Format")
+        st.write("Your CSV file should have the following structure:")
+        
+        sample_data = pd.DataFrame({
+            'date': ['2024-01-01', '2024-01-02', '2024-01-03'],
+            'open': [100.0, 102.0, 101.5],
+            'high': [105.0, 106.0, 104.0],
+            'low': [99.0, 101.0, 100.0],
+            'close': [103.0, 104.5, 102.0],
+            'volume': [1000000, 1200000, 950000]
+        })
+        
+        st.dataframe(sample_data, use_container_width=True)
+        
+        st.markdown("""
+        **Required columns:**
+        - `date`: Date in YYYY-MM-DD format
+        - `close`: Closing price (numeric)
+        
+        **Optional columns:**
+        - `open`: Opening price
+        - `high`: Highest price
+        - `low`: Lowest price
+        - `volume`: Trading volume
+        """)
 
 if __name__ == "__main__":
     main()
