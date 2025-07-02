@@ -8,6 +8,7 @@ import streamlit as st
 import trafilatura
 import re
 import json
+import random
 
 class DataFetcher:
     """Class to handle data fetching from various sources for PSX stocks"""
@@ -223,7 +224,6 @@ class DataFetcher:
         if symbol in current_company_prices:
             base_price = current_company_prices[symbol]
             # Add realistic intraday movement (±1.5%)
-            import random
             variation = random.uniform(-0.015, 0.015)
             current_price = base_price * (1 + variation)
             
@@ -259,6 +259,7 @@ class DataFetcher:
                     continue
             
             # Generate reasonable estimate for unknown companies
+            import random
             estimated_price = random.uniform(50, 300)
             price_data = {
                 'price': round(estimated_price, 2),
@@ -683,6 +684,7 @@ class DataFetcher:
             
             if not live_price:
                 # Provide reasonable estimate
+                import random
                 estimated_price = random.uniform(50, 300)
                 live_price = {
                     'price': round(estimated_price, 2),

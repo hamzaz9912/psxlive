@@ -13,6 +13,7 @@ from forecasting import StockForecaster
 from visualization import ChartVisualizer
 from utils import export_to_csv, format_currency
 from database import get_database_manager
+from enhanced_features import display_enhanced_file_upload
 
 # Page configuration
 st.set_page_config(
@@ -88,7 +89,7 @@ def main():
         # Analysis type selection
         analysis_type = st.selectbox(
             "Select Analysis Type",
-            ["Live Market Dashboard", "KSE-100 Index", "Individual Companies", "File Upload Prediction", "All Companies Live Prices", "Intraday Trading Sessions", "Database Overview"],
+            ["Live Market Dashboard", "KSE-100 Index", "Individual Companies", "Enhanced File Upload", "File Upload Prediction", "All Companies Live Prices", "Intraday Trading Sessions", "Database Overview"],
             key="analysis_type"
         )
         
@@ -135,6 +136,8 @@ def main():
         display_kse100_analysis(forecast_type, days_ahead, custom_date)
     elif analysis_type == "Individual Companies":
         display_company_analysis(selected_company, forecast_type, days_ahead, custom_date)
+    elif analysis_type == "Enhanced File Upload":
+        display_enhanced_file_upload()
     elif analysis_type == "File Upload Prediction":
         display_file_upload_prediction()
     elif analysis_type == "All Companies Live Prices":
