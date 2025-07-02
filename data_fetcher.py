@@ -224,6 +224,7 @@ class DataFetcher:
         if symbol in current_company_prices:
             base_price = current_company_prices[symbol]
             # Add realistic intraday movement (±1.5%)
+            import random
             variation = random.uniform(-0.015, 0.015)
             current_price = base_price * (1 + variation)
             
