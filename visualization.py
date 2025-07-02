@@ -139,26 +139,27 @@ class ChartVisualizer:
         
         fig = go.Figure()
         
-        # Historical prices
+        # Historical prices - LINEAR STYLE
         fig.add_trace(
             go.Scatter(
                 x=historical_data['date'],
                 y=historical_data['close'],
-                mode='lines',
-                name='Historical',
-                line=dict(color=self.colors['primary'], width=2)
+                mode='lines+markers',
+                name='Historical Prices',
+                line=dict(color='#1f77b4', width=3),
+                marker=dict(size=4, color='#1f77b4')
             )
         )
         
-        # Forecast line
+        # Forecast line - LINEAR STYLE
         fig.add_trace(
             go.Scatter(
                 x=forecast_data['ds'],
                 y=forecast_data['yhat'],
                 mode='lines+markers',
-                name='Forecast',
-                line=dict(color=self.colors['danger'], width=3),
-                marker=dict(size=8)
+                name='Linear Forecast',
+                line=dict(color='#ff7f0e', width=3),
+                marker=dict(size=6, color='#ff7f0e', symbol='diamond')
             )
         )
         
@@ -198,25 +199,43 @@ class ChartVisualizer:
                 annotation_position="top"
             )
         
-        # Update layout
+        # Update layout for LINEAR GRAPH
         fig.update_layout(
             title=dict(
-                text=title,
-                font=dict(size=20),
+                text=f"📈 {title} - Linear Forecast Graph",
+                font=dict(size=22, color='#2c3e50'),
                 x=0.5
             ),
             xaxis_title="Date",
             yaxis_title="Price (PKR)",
-            height=500,
+            height=600,
             showlegend=True,
             legend=dict(
                 orientation="h",
                 yanchor="bottom",
                 y=1.02,
-                xanchor="right",
-                x=1
+                xanchor="center",
+                x=0.5,
+                font=dict(size=12)
             ),
+            plot_bgcolor='white',
+            paper_bgcolor='#f8f9fa',
+            font=dict(family="Arial, sans-serif", size=12),
             hovermode='x unified'
+        )
+        
+        # Enhanced grid for linear visualization
+        fig.update_xaxes(
+            showgrid=True, 
+            gridwidth=1, 
+            gridcolor='#e1e5e9',
+            title_font=dict(size=14, color='#2c3e50')
+        )
+        fig.update_yaxes(
+            showgrid=True, 
+            gridwidth=1, 
+            gridcolor='#e1e5e9',
+            title_font=dict(size=14, color='#2c3e50')
         )
         
         return fig

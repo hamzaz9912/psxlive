@@ -298,34 +298,38 @@ def generate_market_summary(kse_data, companies_data):
 
 def format_market_status():
     """
-    Determine and format current market status
+    Determine and format current market status with accurate PSX timing
     
     Returns:
         dict: Market status information
     """
-    now = datetime.now()
+    import pytz
     
-    # PSX trading hours: 9:30 AM to 3:30 PM (Pakistan time)
+    # Pakistan timezone
+    pst = pytz.timezone('Asia/Karachi')
+    now = datetime.now(pst)
+    
+    # PSX trading hours: 9:30 AM to 3:00 PM (Pakistan time)
     market_open = now.replace(hour=9, minute=30, second=0, microsecond=0)
-    market_close = now.replace(hour=15, minute=30, second=0, microsecond=0)
+    market_close = now.replace(hour=15, minute=0, second=0, microsecond=0)  # 3:00 PM
     
     is_weekend = now.weekday() >= 5  # Saturday = 5, Sunday = 6
     
     if is_weekend:
-        status = "Closed (Weekend)"
+        status = "🔴 Closed (Weekend)"
         next_open = "Monday 9:30 AM"
     elif now < market_open:
-        status = "Pre-Market"
+        status = "⏰ Pre-Market"
         next_open = "Today 9:30 AM"
-    elif now > market_close:
-        status = "After Hours"
+    elif market_open <= now <= market_close:
+        status = "🟢 OPEN"
+        next_open = f"Market closes at 3:00 PM"
+    else:
+        status = "🔴 Closed (After Hours)"
         if now.weekday() == 4:  # Friday
             next_open = "Monday 9:30 AM"
         else:
             next_open = "Tomorrow 9:30 AM"
-    else:
-        status = "Market Open"
-        next_open = "Today 3:30 PM (Close)"
     
     return {
         'status': status,
