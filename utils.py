@@ -304,35 +304,47 @@ def format_market_status():
         dict: Market status information
     """
     import pytz
+    from datetime import datetime
     
-    # Pakistan timezone
-    pst = pytz.timezone('Asia/Karachi')
-    now = datetime.now(pst)
+    # Pakistan timezone (PKT)
+    pkt = pytz.timezone('Asia/Karachi')
+    now = datetime.now(pkt)
+    
+    # Get current Pakistan time components
+    current_hour = now.hour
+    current_minute = now.minute
+    current_time_minutes = current_hour * 60 + current_minute
     
     # PSX trading hours: 9:30 AM to 3:00 PM (Pakistan time)
-    market_open = now.replace(hour=9, minute=30, second=0, microsecond=0)
-    market_close = now.replace(hour=15, minute=0, second=0, microsecond=0)  # 3:00 PM
+    market_open_minutes = 9 * 60 + 30  # 9:30 AM = 570 minutes
+    market_close_minutes = 15 * 60     # 3:00 PM = 900 minutes
     
     is_weekend = now.weekday() >= 5  # Saturday = 5, Sunday = 6
     
+    # Debug info for verification
+    debug_info = f"Current PKT: {now.strftime('%Y-%m-%d %H:%M:%S %Z')}"
+    
     if is_weekend:
         status = "🔴 Closed (Weekend)"
-        next_open = "Monday 9:30 AM"
-    elif now < market_open:
+        next_open = "Monday 9:30 AM PKT"
+    elif current_time_minutes < market_open_minutes:
         status = "⏰ Pre-Market"
-        next_open = "Today 9:30 AM"
-    elif market_open <= now <= market_close:
-        status = "🟢 OPEN"
-        next_open = f"Market closes at 3:00 PM"
+        next_open = "Today 9:30 AM PKT"
+    elif market_open_minutes <= current_time_minutes <= market_close_minutes:
+        status = "🟢 MARKET OPEN"
+        next_open = f"Market closes at 3:00 PM PKT"
     else:
         status = "🔴 Closed (After Hours)"
         if now.weekday() == 4:  # Friday
-            next_open = "Monday 9:30 AM"
+            next_open = "Monday 9:30 AM PKT"
         else:
-            next_open = "Tomorrow 9:30 AM"
+            next_open = "Tomorrow 9:30 AM PKT"
     
     return {
         'status': status,
         'next_session': next_open,
-        'current_time': now.strftime("%H:%M:%S")
+        'current_time': now.strftime("%H:%M:%S PKT"),
+        'current_date': now.strftime("%A, %B %d, %Y"),
+        'debug_info': debug_info,
+        'is_market_open': market_open_minutes <= current_time_minutes <= market_close_minutes and not is_weekend
     }

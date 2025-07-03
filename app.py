@@ -11,7 +11,7 @@ from streamlit_autorefresh import st_autorefresh
 from data_fetcher import DataFetcher
 from forecasting import StockForecaster
 from visualization import ChartVisualizer
-from utils import export_to_csv, format_currency
+from utils import export_to_csv, format_currency, format_market_status
 from database import get_database_manager
 from enhanced_features import display_enhanced_file_upload
 
@@ -1070,25 +1070,26 @@ def display_live_market_dashboard():
     from streamlit_autorefresh import st_autorefresh
     count = st_autorefresh(interval=300000, limit=None, key="live_dashboard_refresh")
     
-    # Current market status
-    current_time = datetime.now()
-    market_open = current_time.replace(hour=9, minute=30, second=0, microsecond=0)
-    market_close = current_time.replace(hour=15, minute=0, second=0, microsecond=0)
-    is_market_open = market_open <= current_time <= market_close
+    # Get accurate Pakistan market status
+    market_status = format_market_status()
     
-    # Market status indicator
+    # Market status indicator with Pakistan time
     col1, col2, col3 = st.columns([2, 1, 1])
     with col1:
-        if is_market_open:
-            st.success("🟢 MARKET OPEN - Live Trading")
+        if market_status['is_market_open']:
+            st.success(f"{market_status['status']} - Live Trading")
         else:
-            st.error("🔴 MARKET CLOSED")
+            st.error(market_status['status'])
+        st.caption(f"Pakistan Time: {market_status['current_time']} | {market_status['current_date']}")
     
     with col2:
-        st.metric("Last Update", current_time.strftime("%H:%M:%S"))
+        st.metric("Next Session", market_status['next_session'])
     
     with col3:
-        st.metric("Refresh Count", count)
+        st.metric("Auto-Refresh", f"#{count}")
+    
+    # Debug information
+    st.caption(f"Debug: {market_status['debug_info']}")
     
     # Live KSE-100 Index
     st.markdown("---")
@@ -1127,7 +1128,7 @@ def display_live_market_dashboard():
             st.metric("Market Cap", "PKR 8.2T")
         
         # Generate intraday data for today
-        intraday_data = generate_intraday_market_data(current_price, is_market_open)
+        intraday_data = generate_intraday_market_data(current_price, market_status['is_market_open'])
         
         # Create live chart with 5-minute intervals
         fig = go.Figure()
@@ -1143,6 +1144,10 @@ def display_live_market_dashboard():
         ))
         
         # Add current price point
+        import pytz
+        pkt = pytz.timezone('Asia/Karachi')
+        current_time = datetime.now(pkt)
+        
         fig.add_trace(go.Scatter(
             x=[current_time],
             y=[current_price],
@@ -1152,9 +1157,11 @@ def display_live_market_dashboard():
         ))
         
         # Market hours shading
-        if is_market_open:
+        if market_status['is_market_open']:
+            market_open_time = current_time.replace(hour=9, minute=30, second=0, microsecond=0)
+            market_close_time = current_time.replace(hour=15, minute=0, second=0, microsecond=0)
             fig.add_vrect(
-                x0=market_open, x1=market_close,
+                x0=market_open_time, x1=market_close_time,
                 fillcolor="green", opacity=0.1,
                 annotation_text="Market Hours", annotation_position="top left"
             )
