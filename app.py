@@ -89,7 +89,7 @@ def main():
         # Analysis type selection
         analysis_type = st.selectbox(
             "Select Analysis Type",
-            ["Live Market Dashboard", "KSE-100 Index", "Individual Companies", "Enhanced File Upload", "File Upload Prediction", "All Companies Live Prices", "Intraday Trading Sessions", "Database Overview"],
+            ["Live Market Dashboard", "KSE-100 Index", "Individual Companies", "Enhanced File Upload", "File Upload Prediction", "All Companies Live Prices", "Intraday Trading Sessions", "Comprehensive Intraday Forecasts", "Database Overview"],
             key="analysis_type"
         )
         
@@ -144,6 +144,9 @@ def main():
         display_all_companies_live_prices()
     elif analysis_type == "Intraday Trading Sessions":
         display_intraday_sessions_analysis(forecast_type, days_ahead, custom_date)
+    elif analysis_type == "Comprehensive Intraday Forecasts":
+        from comprehensive_intraday import display_comprehensive_intraday_forecasts
+        display_comprehensive_intraday_forecasts()
     else:
         display_database_overview()
 
@@ -799,17 +802,17 @@ def display_intraday_sessions_analysis(forecast_type, days_ahead, custom_date):
                             mime="text/csv"
                         )
                         
-                        # Summary statistics
+                        # Summary statistics from detailed intraday data
                         st.subheader("📊 Intraday Summary")
                         
                         col1, col2, col3, col4 = st.columns(4)
                         
                         with col1:
-                            day_high = intraday_forecast['yhat'].max()
+                            day_high = detailed_intraday['predicted_high'].max()
                             st.metric("Predicted High", f"{format_currency(day_high, '')}")
                         
                         with col2:
-                            day_low = intraday_forecast['yhat'].min()
+                            day_low = detailed_intraday['predicted_low'].min()
                             st.metric("Predicted Low", f"{format_currency(day_low, '')}")
                         
                         with col3:
@@ -819,6 +822,9 @@ def display_intraday_sessions_analysis(forecast_type, days_ahead, custom_date):
                         with col4:
                             volatility = ((day_range / current_price) * 100)
                             st.metric("Expected Volatility", f"{volatility:.2f}%")
+                    
+                    else:
+                        st.warning("Unable to generate detailed intraday forecast. Please try refreshing.")
             
             else:
                 st.error("Unable to fetch historical data for forecasting. Please try refreshing.")
