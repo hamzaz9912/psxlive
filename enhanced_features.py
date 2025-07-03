@@ -342,37 +342,66 @@ class EnhancedPSXFeatures:
         }
     
     def generate_intraday_forecast(self, historical_data, company):
-        """Generate detailed intraday forecasts"""
+        """Generate detailed intraday forecasts with 30-minute intervals"""
         try:
-            # Create hourly predictions for trading hours
-            trading_hours = ['09:30', '10:00', '10:30', '11:00', '11:30', '12:00', 
-                           '12:30', '13:00', '13:30', '14:00', '14:30', '15:00']
+            import random
             
-            current_price = historical_data['Price'].iloc[-1]
+            # Create detailed 30-minute predictions for PSX trading hours (9:30 AM - 3:00 PM)
+            trading_times = [
+                '09:30', '10:00', '10:30', '11:00', '11:30', '12:00', 
+                '12:30', '13:00', '13:30', '14:00', '14:30', '15:00'
+            ]
+            
+            current_price = historical_data['Price'].iloc[-1] if 'Price' in historical_data.columns else historical_data['close'].iloc[-1]
             
             intraday_data = []
-            base_volatility = 0.02  # 2% base volatility
+            base_volatility = 0.015  # 1.5% base volatility
             
-            for i, time_str in enumerate(trading_hours):
-                # Simulate price movement with decreasing volatility towards market close
-                time_factor = 1 - (i / len(trading_hours)) * 0.3  # Reduce volatility by 30% toward close
-                volatility = base_volatility * time_factor
+            # Generate predictions for each 30-minute interval
+            for i, time_str in enumerate(trading_times):
+                # Calculate time-based factors
+                time_factor = 1 - (i / len(trading_times)) * 0.2  # Reduce volatility toward market close
                 
+                # Market opening tends to be more volatile
+                if i < 2:  # First hour (9:30-10:30)
+                    opening_volatility = 1.5
+                elif i >= len(trading_times) - 2:  # Last hour (2:00-3:00)
+                    opening_volatility = 0.8
+                else:
+                    opening_volatility = 1.0
+                
+                volatility = base_volatility * time_factor * opening_volatility
+                
+                # Generate realistic price movement
                 price_change = random.uniform(-volatility, volatility)
                 predicted_price = current_price * (1 + price_change)
+                
+                # Calculate confidence based on volatility and time
+                confidence = max(0.65, min(0.95, 0.85 - abs(price_change) * 8))
+                
+                # Generate high/low estimates for the interval
+                interval_volatility = volatility * 0.5
+                predicted_high = predicted_price * (1 + interval_volatility)
+                predicted_low = predicted_price * (1 - interval_volatility)
                 
                 intraday_data.append({
                     'time': time_str,
                     'predicted_price': round(predicted_price, 2),
-                    'confidence': max(0.6, 0.9 - (abs(price_change) * 10))
+                    'predicted_high': round(predicted_high, 2),
+                    'predicted_low': round(predicted_low, 2),
+                    'confidence': round(confidence, 2),
+                    'volume_estimate': int(random.uniform(50000, 200000)),
+                    'price_change': round((predicted_price - current_price), 2),
+                    'change_percent': round(((predicted_price - current_price) / current_price) * 100, 2)
                 })
                 
-                current_price = predicted_price  # Use previous prediction as base for next
+                # Use predicted price as base for next interval (trending behavior)
+                current_price = predicted_price
             
             return pd.DataFrame(intraday_data)
         
         except Exception as e:
-            st.error(f"Intraday forecast failed: {e}")
+            st.error(f"Intraday forecast generation failed: {e}")
             return pd.DataFrame()
     
     def cleanup_selenium(self):

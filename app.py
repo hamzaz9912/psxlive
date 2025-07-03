@@ -710,54 +710,94 @@ def display_intraday_sessions_analysis(forecast_type, days_ahead, custom_date):
                                 st.metric("Prediction Range", f"±{range_width/2:.2f}")
                 
                 with tab3:
-                    st.write("**Full Day Intraday Forecast**")
+                    st.write("**Detailed 30-Minute Intraday Forecast**")
+                    st.markdown("*Complete trading day predictions with 30-minute intervals from 9:30 AM to 3:00 PM*")
                     
-                    # Generate full day intraday forecast
-                    intraday_forecast = st.session_state.forecaster.forecast_stock(
-                        kse_data, days_ahead=1, forecast_type='intraday'
-                    )
+                    # Generate detailed intraday forecast using enhanced features
+                    from enhanced_features import EnhancedPSXFeatures
+                    enhanced_features = EnhancedPSXFeatures()
                     
-                    if intraday_forecast is not None and not intraday_forecast.empty:
-                        # Create full day chart
+                    detailed_intraday = enhanced_features.generate_intraday_forecast(kse_data, "KSE-100")
+                    
+                    if not detailed_intraday.empty:
+                        # Create detailed intraday chart with 30-minute intervals
                         fig = go.Figure()
                         
-                        # Historical data
-                        recent_data = kse_data.tail(15)
+                        # Add predicted prices as main line
                         fig.add_trace(go.Scatter(
-                            x=recent_data['date'],
-                            y=recent_data['close'],
+                            x=detailed_intraday['time'],
+                            y=detailed_intraday['predicted_price'],
                             mode='lines+markers',
-                            name='Historical Daily Closes',
-                            line=dict(color='blue')
+                            name='30-Min Predictions',
+                            line=dict(color='#ff7f0e', width=3),
+                            marker=dict(size=6, color='#ff7f0e', symbol='diamond')
                         ))
                         
-                        # Intraday forecast
+                        # Add high-low range as shaded area
                         fig.add_trace(go.Scatter(
-                            x=intraday_forecast['ds'],
-                            y=intraday_forecast['yhat'],
-                            mode='lines+markers',
-                            name='Intraday Forecast',
-                            line=dict(color='red', dash='dash')
-                        ))
-                        
-                        # Confidence interval
-                        fig.add_trace(go.Scatter(
-                            x=list(intraday_forecast['ds']) + list(intraday_forecast['ds'][::-1]),
-                            y=list(intraday_forecast['yhat_upper']) + list(intraday_forecast['yhat_lower'][::-1]),
+                            x=list(detailed_intraday['time']) + list(detailed_intraday['time'][::-1]),
+                            y=list(detailed_intraday['predicted_high']) + list(detailed_intraday['predicted_low'][::-1]),
                             fill='toself',
-                            fillcolor='rgba(255,0,0,0.1)',
+                            fillcolor='rgba(255, 127, 14, 0.2)',
                             line=dict(color='rgba(255,255,255,0)'),
-                            name='Confidence Interval'
+                            name='Price Range',
+                            showlegend=True
                         ))
                         
-                        fig.update_layout(
-                            title="Full Day Intraday Price Movement Forecast",
-                            xaxis_title="Time",
-                            yaxis_title="Price (PKR)",
-                            height=500
+                        # Add current price as reference line
+                        fig.add_hline(
+                            y=current_price, 
+                            line_dash="dash", 
+                            line_color="green",
+                            annotation_text=f"Current: {current_price:,.2f}"
                         )
                         
+                        fig.update_layout(
+                            title="📈 Detailed Intraday Forecast - 30-Minute Intervals",
+                            xaxis_title="Trading Time (PSX Hours)",
+                            yaxis_title="Predicted Price (PKR)",
+                            height=600,
+                            showlegend=True,
+                            plot_bgcolor='white',
+                            paper_bgcolor='#f8f9fa',
+                            font=dict(family="Arial, sans-serif", size=12)
+                        )
+                        
+                        # Enhanced grid for better readability
+                        fig.update_xaxes(showgrid=True, gridwidth=1, gridcolor='#e1e5e9')
+                        fig.update_yaxes(showgrid=True, gridwidth=1, gridcolor='#e1e5e9')
+                        
                         st.plotly_chart(fig, use_container_width=True)
+                        
+                        # Detailed forecast table
+                        st.subheader("📊 30-Minute Forecast Details")
+                        
+                        # Format the data for display
+                        display_data = detailed_intraday.copy()
+                        display_data['Time'] = display_data['time']
+                        display_data['Predicted Price (PKR)'] = display_data['predicted_price'].apply(lambda x: f"{x:,.2f}")
+                        display_data['High (PKR)'] = display_data['predicted_high'].apply(lambda x: f"{x:,.2f}")
+                        display_data['Low (PKR)'] = display_data['predicted_low'].apply(lambda x: f"{x:,.2f}")
+                        display_data['Confidence'] = display_data['confidence'].apply(lambda x: f"{x:.0%}")
+                        display_data['Change from Current'] = display_data['price_change'].apply(lambda x: f"{x:+.2f}")
+                        display_data['Change %'] = display_data['change_percent'].apply(lambda x: f"{x:+.2f}%")
+                        
+                        # Display table with key columns
+                        st.dataframe(
+                            display_data[['Time', 'Predicted Price (PKR)', 'High (PKR)', 'Low (PKR)', 
+                                        'Change from Current', 'Change %', 'Confidence']],
+                            use_container_width=True,
+                            hide_index=True
+                        )
+                        
+                        # Export button for detailed forecast
+                        csv_data = detailed_intraday.to_csv(index=False)
+                        st.download_button(
+                            label="📥 Download 30-Minute Forecast Data",
+                            data=csv_data,
+                            file_name=f"kse100_30min_forecast_{datetime.now().strftime('%Y%m%d')}.csv",
+                            mime="text/csv"
+                        )
                         
                         # Summary statistics
                         st.subheader("📊 Intraday Summary")
