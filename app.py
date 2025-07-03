@@ -89,7 +89,7 @@ def main():
         # Analysis type selection
         analysis_type = st.selectbox(
             "Select Analysis Type",
-            ["Live Market Dashboard", "KSE-100 Index", "Individual Companies", "Enhanced File Upload", "File Upload Prediction", "All Companies Live Prices", "Intraday Trading Sessions", "Comprehensive Intraday Forecasts", "Database Overview"],
+            ["Live Market Dashboard", "KSE-100 Index", "Individual Companies", "Advanced Forecasting Hub", "Enhanced File Upload", "File Upload Prediction", "All Companies Live Prices", "Intraday Trading Sessions", "Comprehensive Intraday Forecasts", "Database Overview"],
             key="analysis_type"
         )
         
@@ -136,6 +136,9 @@ def main():
         display_kse100_analysis(forecast_type, days_ahead, custom_date)
     elif analysis_type == "Individual Companies":
         display_company_analysis(selected_company, forecast_type, days_ahead, custom_date)
+    elif analysis_type == "Advanced Forecasting Hub":
+        from advanced_forecasting import display_advanced_forecasting_dashboard
+        display_advanced_forecasting_dashboard()
     elif analysis_type == "Enhanced File Upload":
         display_enhanced_file_upload()
     elif analysis_type == "File Upload Prediction":
