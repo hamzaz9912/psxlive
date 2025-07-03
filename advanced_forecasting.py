@@ -321,8 +321,35 @@ def display_advanced_forecasting_dashboard():
     st.title("🚀 Advanced PSX Forecasting Dashboard")
     st.markdown("**Complete forecasting solution with time range selection, brand file upload, and live price integration**")
     
-    # Initialize forecaster
-    forecaster = AdvancedForecaster()
+    # Initialize forecaster and session state
+    if 'advanced_forecaster' not in st.session_state:
+        st.session_state.advanced_forecaster = AdvancedForecaster()
+    
+    forecaster = st.session_state.advanced_forecaster
+    
+    # Initialize data fetcher and other components
+    if 'data_fetcher' not in st.session_state:
+        from data_fetcher import DataFetcher
+        st.session_state.data_fetcher = DataFetcher()
+    
+    if 'forecaster' not in st.session_state:
+        from forecasting import StockForecaster
+        st.session_state.forecaster = StockForecaster()
+    
+    # Display current market status
+    from utils import format_market_status
+    market_status = format_market_status()
+    
+    # Market status indicator
+    col1, col2 = st.columns(2)
+    with col1:
+        if market_status['is_market_open']:
+            st.success(f"🟢 {market_status['status']} - Live Trading Active")
+        else:
+            st.info(f"🔴 {market_status['status']}")
+    
+    with col2:
+        st.info(f"📅 Pakistan Time: {market_status['current_time']} | {market_status['current_date']}")
     
     # Feature selection tabs
     tab1, tab2, tab3, tab4 = st.tabs([
@@ -381,87 +408,105 @@ def display_advanced_forecasting_dashboard():
         if st.button("🎯 Generate Time Range Forecast", type="primary", key="generate_time_forecast"):
             with st.spinner(f"Generating forecast for {selected_brand} from {start_time} to {end_time}..."):
                 
+                # Initialize data fetcher if not available
+                if 'data_fetcher' not in st.session_state:
+                    from data_fetcher import DataFetcher
+                    st.session_state.data_fetcher = DataFetcher()
+                
                 # Get historical data
-                if selected_brand == 'KSE-100':
-                    historical_data = st.session_state.data_fetcher.fetch_kse100_data()
-                else:
-                    historical_data = st.session_state.data_fetcher.fetch_company_data(selected_brand)
+                try:
+                    if selected_brand == 'KSE-100':
+                        historical_data = st.session_state.data_fetcher.fetch_kse100_data()
+                    else:
+                        historical_data = st.session_state.data_fetcher.fetch_company_data(selected_brand)
+                except Exception as e:
+                    st.error(f"Error fetching data: {e}")
+                    historical_data = None
                 
                 if historical_data is not None and not historical_data.empty:
-                    # Generate time range forecast
-                    forecast_data = forecaster.generate_time_range_forecast(
-                        historical_data, start_time, end_time, selected_brand
-                    )
-                    
-                    # Create forecast graph
-                    fig = go.Figure()
-                    
-                    # Add forecast line
-                    fig.add_trace(go.Scatter(
-                        x=forecast_data['ds'],
-                        y=forecast_data['yhat'],
-                        mode='lines+markers',
-                        name=f'{selected_brand} Forecast',
-                        line=dict(color='blue', width=3),
-                        marker=dict(size=8)
-                    ))
-                    
-                    # Add confidence interval
-                    fig.add_trace(go.Scatter(
-                        x=list(forecast_data['ds']) + list(forecast_data['ds'][::-1]),
-                        y=list(forecast_data['yhat_upper']) + list(forecast_data['yhat_lower'][::-1]),
-                        fill='toself',
-                        fillcolor='rgba(0,100,80,0.2)',
-                        line=dict(color='rgba(255,255,255,0)'),
-                        name='Confidence Interval',
-                        showlegend=True
-                    ))
-                    
-                    # Add current price marker
-                    live_data = forecaster.get_comprehensive_live_price(selected_brand)
-                    current_time = datetime.now(forecaster.pkt_timezone)
-                    
-                    if start_time <= current_time.time() <= end_time:
-                        fig.add_trace(go.Scatter(
-                            x=[current_time],
-                            y=[live_data['price']],
-                            mode='markers',
-                            name='Current Price',
-                            marker=dict(size=15, color='red', symbol='diamond')
-                        ))
-                    
-                    fig.update_layout(
-                        title=f"{selected_brand} - Time Range Forecast ({start_time.strftime('%H:%M')} - {end_time.strftime('%H:%M')})",
-                        xaxis_title="Time",
-                        yaxis_title="Price (PKR)",
-                        height=500,
-                        showlegend=True,
-                        hovermode='x unified'
-                    )
-                    
-                    st.plotly_chart(fig, use_container_width=True)
-                    
-                    # Display forecast summary
-                    st.subheader("📊 Forecast Summary")
-                    
-                    col1, col2, col3, col4 = st.columns(4)
-                    
-                    with col1:
-                        st.metric("Start Price", f"{forecast_data['yhat'].iloc[0]:,.2f} PKR")
-                    
-                    with col2:
-                        st.metric("End Price", f"{forecast_data['yhat'].iloc[-1]:,.2f} PKR")
-                    
-                    with col3:
-                        price_change = forecast_data['yhat'].iloc[-1] - forecast_data['yhat'].iloc[0]
-                        st.metric("Expected Change", f"{price_change:+.2f} PKR")
-                    
-                    with col4:
-                        change_percent = (price_change / forecast_data['yhat'].iloc[0]) * 100
-                        st.metric("Change %", f"{change_percent:+.2f}%")
-                    
-                    # Data source info
-                    st.info(f"📊 Live price source: {live_data['source']} | Current price: {live_data['price']:,.2f} PKR")
+                    try:
+                        # Generate time range forecast
+                        forecast_data = forecaster.generate_time_range_forecast(
+                            historical_data, start_time, end_time, selected_brand
+                        )
+                        
+                        if forecast_data is not None and not forecast_data.empty:
+                            # Create forecast graph
+                            fig = go.Figure()
+                            
+                            # Add forecast line
+                            fig.add_trace(go.Scatter(
+                                x=forecast_data['ds'],
+                                y=forecast_data['yhat'],
+                                mode='lines+markers',
+                                name=f'{selected_brand} Forecast',
+                                line=dict(color='blue', width=3),
+                                marker=dict(size=8)
+                            ))
+                            
+                            # Add confidence interval
+                            fig.add_trace(go.Scatter(
+                                x=list(forecast_data['ds']) + list(forecast_data['ds'][::-1]),
+                                y=list(forecast_data['yhat_upper']) + list(forecast_data['yhat_lower'][::-1]),
+                                fill='toself',
+                                fillcolor='rgba(0,100,80,0.2)',
+                                line=dict(color='rgba(255,255,255,0)'),
+                                name='Confidence Interval',
+                                showlegend=True
+                            ))
+                            
+                            # Add current price marker
+                            live_data = forecaster.get_comprehensive_live_price(selected_brand)
+                            current_time_pkt = datetime.now(forecaster.pkt_timezone)
+                            
+                            if start_time <= current_time_pkt.time() <= end_time:
+                                fig.add_trace(go.Scatter(
+                                    x=[current_time_pkt],
+                                    y=[live_data['price']],
+                                    mode='markers',
+                                    name='Current Price',
+                                    marker=dict(size=15, color='red', symbol='diamond')
+                                ))
+                            
+                            fig.update_layout(
+                                title=f"{selected_brand} - Time Range Forecast ({start_time.strftime('%H:%M')} - {end_time.strftime('%H:%M')})",
+                                xaxis_title="Time",
+                                yaxis_title="Price (PKR)",
+                                height=500,
+                                showlegend=True,
+                                hovermode='x unified'
+                            )
+                            
+                            st.plotly_chart(fig, use_container_width=True)
+                            
+                            # Display forecast summary
+                            st.subheader("📊 Forecast Summary")
+                            
+                            col1, col2, col3, col4 = st.columns(4)
+                            
+                            with col1:
+                                st.metric("Start Price", f"{forecast_data['yhat'].iloc[0]:,.2f} PKR")
+                            
+                            with col2:
+                                st.metric("End Price", f"{forecast_data['yhat'].iloc[-1]:,.2f} PKR")
+                            
+                            with col3:
+                                price_change = forecast_data['yhat'].iloc[-1] - forecast_data['yhat'].iloc[0]
+                                st.metric("Expected Change", f"{price_change:+.2f} PKR")
+                            
+                            with col4:
+                                change_percent = (price_change / forecast_data['yhat'].iloc[0]) * 100
+                                st.metric("Change %", f"{change_percent:+.2f}%")
+                            
+                            # Data source info
+                            st.info(f"📊 Live price source: {live_data['source']} | Current price: {live_data['price']:,.2f} PKR")
+                            
+                        else:
+                            st.error("Unable to generate forecast data. Please try again.")
+                            
+                    except Exception as e:
+                        st.error(f"Error generating forecast: {e}")
+                        st.info("Please try again or select a different time range.")
                     
                 else:
                     st.error("Unable to fetch historical data for forecasting")
