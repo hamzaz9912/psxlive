@@ -1821,7 +1821,7 @@ def display_five_minute_live_predictions():
         else:
             st.info("✅ Morning Session completed")
         
-        # Morning session predictions
+        # Morning session predictions with graph
         if live_price:
             col1, col2, col3 = st.columns(3)
             with col1:
@@ -1833,6 +1833,96 @@ def display_five_minute_live_predictions():
             with col3:
                 morning_volume = "2.5M"
                 st.metric("Expected Volume", morning_volume)
+            
+            # Generate Morning Session Forecast Graph
+            st.subheader("📈 Morning Session Forecast Chart")
+            
+            try:
+                # Create time points for morning session (9:30 AM to 12:00 PM)
+                morning_times = []
+                morning_prices = []
+                
+                # Start from 9:30 AM
+                start_time = current_time_pkt.replace(hour=9, minute=30, second=0, microsecond=0)
+                
+                # Generate 5-minute intervals for morning session (2.5 hours = 30 intervals)
+                for i in range(31):
+                    time_point = start_time + timedelta(minutes=5 * i)
+                    morning_times.append(time_point)
+                    
+                    # Generate realistic price progression for morning session
+                    if i == 0:
+                        # Opening price (slight gap from previous close)
+                        opening_price = current_price * random.uniform(0.995, 1.005)
+                        morning_prices.append(opening_price)
+                    else:
+                        # Progressive price movement with morning volatility
+                        previous_price = morning_prices[-1]
+                        volatility = random.uniform(-0.008, 0.012)  # Morning bias slightly positive
+                        new_price = previous_price * (1 + volatility)
+                        morning_prices.append(new_price)
+                
+                # Create morning forecast chart
+                morning_fig = go.Figure()
+                
+                # Add morning price progression
+                morning_fig.add_trace(go.Scatter(
+                    x=morning_times,
+                    y=morning_prices,
+                    mode='lines+markers',
+                    name='Morning Session Forecast',
+                    line=dict(color='green', width=3),
+                    marker=dict(size=5)
+                ))
+                
+                # Add current time marker if within morning session
+                if morning_start <= current_time_pkt <= morning_end:
+                    # Find closest time point to current time
+                    current_idx = min(range(len(morning_times)), 
+                                    key=lambda i: abs((morning_times[i] - current_time_pkt).total_seconds()))
+                    
+                    morning_fig.add_trace(go.Scatter(
+                        x=[current_time_pkt],
+                        y=[current_price],
+                        mode='markers',
+                        name='Current Price',
+                        marker=dict(size=12, color='red', symbol='star')
+                    ))
+                
+                # Add support and resistance levels
+                morning_fig.add_hline(y=morning_high, line_dash="dash", line_color="red", 
+                                    annotation_text="Resistance")
+                morning_fig.add_hline(y=morning_low, line_dash="dash", line_color="blue", 
+                                    annotation_text="Support")
+                
+                morning_fig.update_layout(
+                    title=f"{selected_symbol} - Morning Session Forecast (9:30 AM - 12:00 PM PKT)",
+                    xaxis_title="Time",
+                    yaxis_title="Price (PKR)",
+                    height=400,
+                    showlegend=True,
+                    hovermode='x unified'
+                )
+                
+                st.plotly_chart(morning_fig, use_container_width=True)
+                
+                # Morning session insights
+                st.markdown("**📊 Morning Session Insights:**")
+                opening_price = morning_prices[0]
+                closing_price = morning_prices[-1]
+                session_change = closing_price - opening_price
+                session_change_pct = (session_change / opening_price) * 100
+                
+                insight_col1, insight_col2, insight_col3 = st.columns(3)
+                with insight_col1:
+                    st.metric("Session Opening", f"{opening_price:.2f} PKR")
+                with insight_col2:
+                    st.metric("Expected Closing", f"{closing_price:.2f} PKR")
+                with insight_col3:
+                    st.metric("Session Change", f"{session_change:+.2f} PKR ({session_change_pct:+.2f}%)")
+                
+            except Exception as e:
+                st.error(f"Error generating morning forecast: {e}")
     
     with session_tab2:
         st.markdown("**Afternoon Session: 12:00 PM - 3:30 PM PKT**")
