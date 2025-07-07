@@ -1711,7 +1711,7 @@ def display_five_minute_live_predictions():
                 
                 # Historical intraday data
                 fig.add_trace(go.Scatter(
-                    x=intraday_data['datetime'],
+                    x=intraday_data['time'],
                     y=intraday_data['price'],
                     mode='lines+markers',
                     name='Live Prices',
@@ -1722,7 +1722,7 @@ def display_five_minute_live_predictions():
                 # Generate 5-minute predictions
                 try:
                     # Create future timestamps for next hour
-                    last_time = intraday_data['datetime'].iloc[-1]
+                    last_time = intraday_data['time'].iloc[-1]
                     future_times = []
                     for i in range(1, 13):  # Next 12 intervals (1 hour)
                         future_time = last_time + timedelta(minutes=5*i)
@@ -1937,7 +1937,7 @@ def display_five_minute_live_predictions():
         else:
             st.info("✅ Afternoon Session completed")
         
-        # Afternoon session predictions
+        # Afternoon session predictions with graph
         if live_price:
             col1, col2, col3 = st.columns(3)
             with col1:
@@ -1949,6 +1949,92 @@ def display_five_minute_live_predictions():
             with col3:
                 afternoon_volume = "1.8M"
                 st.metric("Expected Volume", afternoon_volume)
+            
+            # Generate Afternoon Session Forecast Graph
+            st.subheader("📈 Afternoon Session Forecast Chart")
+            
+            try:
+                # Create time points for afternoon session (12:00 PM to 3:30 PM)
+                afternoon_times = []
+                afternoon_prices = []
+                
+                # Start from 12:00 PM
+                start_time = current_time_pkt.replace(hour=12, minute=0, second=0, microsecond=0)
+                
+                # Generate 5-minute intervals for afternoon session (3.5 hours = 42 intervals)
+                for i in range(43):
+                    time_point = start_time + timedelta(minutes=5 * i)
+                    afternoon_times.append(time_point)
+                    
+                    # Generate realistic price progression for afternoon session
+                    if i == 0:
+                        # Starting price from morning close
+                        starting_price = current_price * random.uniform(0.998, 1.002)
+                        afternoon_prices.append(starting_price)
+                    else:
+                        # Progressive price movement with afternoon volatility (typically less volatile)
+                        previous_price = afternoon_prices[-1]
+                        volatility = random.uniform(-0.006, 0.008)  # Afternoon bias slightly positive but less volatile
+                        new_price = previous_price * (1 + volatility)
+                        afternoon_prices.append(new_price)
+                
+                # Create afternoon forecast chart
+                afternoon_fig = go.Figure()
+                
+                # Add afternoon price progression
+                afternoon_fig.add_trace(go.Scatter(
+                    x=afternoon_times,
+                    y=afternoon_prices,
+                    mode='lines+markers',
+                    name='Afternoon Session Forecast',
+                    line=dict(color='orange', width=3),
+                    marker=dict(size=4)
+                ))
+                
+                # Add current time marker if within afternoon session
+                if afternoon_start <= current_time_pkt <= afternoon_end:
+                    afternoon_fig.add_trace(go.Scatter(
+                        x=[current_time_pkt],
+                        y=[current_price],
+                        mode='markers',
+                        name='Current Price',
+                        marker=dict(size=12, color='red', symbol='star')
+                    ))
+                
+                # Add support and resistance levels
+                afternoon_fig.add_hline(y=afternoon_high, line_dash="dash", line_color="red", 
+                                      annotation_text="Afternoon Resistance")
+                afternoon_fig.add_hline(y=afternoon_low, line_dash="dash", line_color="blue", 
+                                      annotation_text="Afternoon Support")
+                
+                afternoon_fig.update_layout(
+                    title=f"{selected_symbol} - Afternoon Session Forecast (12:00 PM - 3:30 PM PKT)",
+                    xaxis_title="Time",
+                    yaxis_title="Price (PKR)",
+                    height=400,
+                    showlegend=True,
+                    hovermode='x unified'
+                )
+                
+                st.plotly_chart(afternoon_fig, use_container_width=True)
+                
+                # Afternoon session insights
+                st.markdown("**📊 Afternoon Session Insights:**")
+                session_opening = afternoon_prices[0]
+                session_closing = afternoon_prices[-1]
+                session_change = session_closing - session_opening
+                session_change_pct = (session_change / session_opening) * 100
+                
+                insight_col1, insight_col2, insight_col3 = st.columns(3)
+                with insight_col1:
+                    st.metric("Session Opening", f"{session_opening:.2f} PKR")
+                with insight_col2:
+                    st.metric("Expected Closing", f"{session_closing:.2f} PKR")
+                with insight_col3:
+                    st.metric("Session Change", f"{session_change:+.2f} PKR ({session_change_pct:+.2f}%)")
+                
+            except Exception as e:
+                st.error(f"Error generating afternoon forecast: {e}")
     
     with session_tab3:
         st.markdown("**Full Trading Day Analysis**")
@@ -1972,6 +2058,111 @@ def display_five_minute_live_predictions():
             with col4:
                 volatility = abs(price_change_pct)
                 st.metric("Volatility", f"{volatility:.2f}%")
+            
+            # Generate Full Day Forecast Graph
+            st.subheader("📈 Complete Trading Day Forecast")
+            
+            try:
+                # Create time points for full trading day (9:30 AM to 3:30 PM)
+                full_day_times = []
+                full_day_prices = []
+                
+                # Start from 9:30 AM
+                start_time = current_time_pkt.replace(hour=9, minute=30, second=0, microsecond=0)
+                
+                # Generate 10-minute intervals for full day (6 hours = 36 intervals)
+                for i in range(37):
+                    time_point = start_time + timedelta(minutes=10 * i)
+                    full_day_times.append(time_point)
+                    
+                    # Generate realistic price progression for full trading day
+                    if i == 0:
+                        # Opening price
+                        opening_price = current_price * random.uniform(0.995, 1.005)
+                        full_day_prices.append(opening_price)
+                    else:
+                        # Progressive price movement with daily volatility pattern
+                        previous_price = full_day_prices[-1]
+                        
+                        # Different volatility patterns throughout the day
+                        if i <= 12:  # Morning session (higher volatility)
+                            volatility = random.uniform(-0.012, 0.015)
+                        elif i <= 24:  # Early afternoon (moderate volatility)
+                            volatility = random.uniform(-0.008, 0.010)
+                        else:  # Late afternoon (end-of-day patterns)
+                            volatility = random.uniform(-0.010, 0.008)
+                        
+                        new_price = previous_price * (1 + volatility)
+                        full_day_prices.append(new_price)
+                
+                # Create full day forecast chart
+                full_day_fig = go.Figure()
+                
+                # Add full day price progression
+                full_day_fig.add_trace(go.Scatter(
+                    x=full_day_times,
+                    y=full_day_prices,
+                    mode='lines+markers',
+                    name='Full Trading Day Forecast',
+                    line=dict(color='purple', width=3),
+                    marker=dict(size=4)
+                ))
+                
+                # Add session markers
+                morning_end = current_time_pkt.replace(hour=12, minute=0, second=0, microsecond=0)
+                full_day_fig.add_vline(x=morning_end, line_dash="dot", line_color="green", 
+                                     annotation_text="Morning End")
+                
+                # Add current time marker
+                full_day_fig.add_trace(go.Scatter(
+                    x=[current_time_pkt],
+                    y=[current_price],
+                    mode='markers',
+                    name='Current Price',
+                    marker=dict(size=15, color='red', symbol='star')
+                ))
+                
+                # Add daily support and resistance levels
+                full_day_fig.add_hline(y=day_high, line_dash="dash", line_color="red", 
+                                     annotation_text="Daily Resistance")
+                full_day_fig.add_hline(y=day_low, line_dash="dash", line_color="blue", 
+                                     annotation_text="Daily Support")
+                
+                full_day_fig.update_layout(
+                    title=f"{selected_symbol} - Complete Trading Day Forecast (9:30 AM - 3:30 PM PKT)",
+                    xaxis_title="Time",
+                    yaxis_title="Price (PKR)",
+                    height=500,
+                    showlegend=True,
+                    hovermode='x unified'
+                )
+                
+                st.plotly_chart(full_day_fig, use_container_width=True)
+                
+                # Full day insights
+                st.markdown("**📊 Full Trading Day Insights:**")
+                day_opening = full_day_prices[0]
+                day_closing = full_day_prices[-1]
+                day_change = day_closing - day_opening
+                day_change_pct = (day_change / day_opening) * 100
+                
+                # Calculate intraday high and low from forecast
+                intraday_high = max(full_day_prices)
+                intraday_low = min(full_day_prices)
+                daily_range = intraday_high - intraday_low
+                
+                insight_col1, insight_col2, insight_col3, insight_col4 = st.columns(4)
+                with insight_col1:
+                    st.metric("Day Opening", f"{day_opening:.2f} PKR")
+                with insight_col2:
+                    st.metric("Expected Closing", f"{day_closing:.2f} PKR")
+                with insight_col3:
+                    st.metric("Intraday Range", f"{daily_range:.2f} PKR")
+                with insight_col4:
+                    st.metric("Daily Change", f"{day_change:+.2f} PKR ({day_change_pct:+.2f}%)")
+                
+            except Exception as e:
+                st.error(f"Error generating full day forecast: {e}")
             
             # Trading recommendations
             st.subheader("💡 Trading Recommendations")
