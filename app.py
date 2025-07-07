@@ -1621,6 +1621,7 @@ def display_five_minute_live_predictions():
     st.markdown("**Real-time market data scraping with continuous 5-minute predictions and intraday trading session analysis**")
     
     from utils import format_market_status
+    from datetime import datetime, timedelta
     import pytz
     
     # Market status and real-time updates
@@ -2203,7 +2204,6 @@ def display_five_minute_live_predictions():
             try:
                 # Import required modules
                 import random
-                from datetime import datetime, timedelta
                 
                 # Create time points for full trading day (9:30 AM to 3:30 PM)
                 full_day_times = []
