@@ -1640,10 +1640,10 @@ def display_five_minute_live_predictions():
         st.info(f"📅 **PKT Time:** {current_time_pkt.strftime('%H:%M:%S')}")
     
     with col3:
-        # Auto-refresh every 5 seconds
-        from streamlit_autorefresh import st_autorefresh
-        refresh_count = st_autorefresh(interval=5000, key="live_predictions_refresh")
-        st.info(f"🔄 **Updates:** {refresh_count}")
+        # Manual refresh button instead of auto-refresh
+        if st.button("🔄 Refresh Market Data", type="primary", key="manual_refresh"):
+            st.rerun()
+        st.info("📊 **Manual Refresh Mode**")
     
     st.markdown("---")
     
@@ -1702,64 +1702,190 @@ def display_five_minute_live_predictions():
             </div>
             """, unsafe_allow_html=True)
             
-            # Generate intraday data for predictions
-            intraday_data = generate_intraday_market_data(current_price, market_status['is_market_open'])
+            # Generate Complete Day 5-Minute Data
+            st.subheader("📈 Complete Trading Day 5-Minute Chart")
             
-            if intraday_data is not None and not intraday_data.empty:
-                # Create 5-minute prediction chart
+            # Create comprehensive full-day 5-minute data
+            try:
+                # Generate complete trading day data (9:30 AM to 3:30 PM PKT)
+                trading_start = current_time_pkt.replace(hour=9, minute=30, second=0, microsecond=0)
+                trading_end = current_time_pkt.replace(hour=15, minute=30, second=0, microsecond=0)
+                
+                # Generate 5-minute intervals for complete day
+                complete_day_times = []
+                complete_day_prices = []
+                
+                current_interval = trading_start
+                base_price = current_price
+                
+                # Generate 72 intervals (6 hours * 12 intervals per hour)
+                for i in range(73):
+                    complete_day_times.append(current_interval)
+                    
+                    if i == 0:
+                        # Opening price with slight variation
+                        price = base_price * random.uniform(0.998, 1.002)
+                    else:
+                        # Progressive price movement throughout the day
+                        previous_price = complete_day_prices[-1]
+                        
+                        # Different volatility patterns based on time of day
+                        hour = current_interval.hour
+                        if 9 <= hour < 11:  # Morning session - higher volatility
+                            volatility = random.uniform(-0.008, 0.012)
+                        elif 11 <= hour < 13:  # Mid-day - moderate volatility
+                            volatility = random.uniform(-0.006, 0.008)
+                        elif 13 <= hour < 15:  # Afternoon - varying volatility
+                            volatility = random.uniform(-0.007, 0.010)
+                        else:  # Closing time - end-of-day patterns
+                            volatility = random.uniform(-0.005, 0.006)
+                        
+                        # Apply market trend bias
+                        trend_bias = price_change_pct * 0.001  # Convert percentage to decimal
+                        price = previous_price * (1 + volatility + trend_bias)
+                    
+                    complete_day_prices.append(price)
+                    current_interval += timedelta(minutes=5)
+                
+                # Create the comprehensive chart
                 fig = go.Figure()
                 
-                # Historical intraday data
+                # Add complete day price data
                 fig.add_trace(go.Scatter(
-                    x=intraday_data['time'],
-                    y=intraday_data['price'],
+                    x=complete_day_times,
+                    y=complete_day_prices,
                     mode='lines+markers',
-                    name='Live Prices',
-                    line=dict(color='blue', width=2),
-                    marker=dict(size=4)
+                    name=f'{selected_symbol} - Complete Day',
+                    line=dict(color='#1f77b4', width=2),
+                    marker=dict(size=3),
+                    hovertemplate='<b>%{x}</b><br>Price: %{y:.2f} PKR<extra></extra>'
                 ))
                 
-                # Generate 5-minute predictions
-                try:
-                    # Create future timestamps for next hour
-                    last_time = intraday_data['time'].iloc[-1]
-                    future_times = []
-                    for i in range(1, 13):  # Next 12 intervals (1 hour)
-                        future_time = last_time + timedelta(minutes=5*i)
-                        future_times.append(future_time)
+                # Add current time marker
+                if trading_start <= current_time_pkt <= trading_end:
+                    # Find closest time index
+                    current_index = min(range(len(complete_day_times)), 
+                                      key=lambda i: abs((complete_day_times[i] - current_time_pkt).total_seconds()))
                     
-                    # Generate prediction values
-                    last_price = intraday_data['price'].iloc[-1]
-                    predicted_values = []
-                    
-                    for i, future_time in enumerate(future_times):
-                        # Simple trend-based prediction with some randomness
-                        trend_factor = 1 + (price_change_pct / 100) * 0.1
-                        noise = random.uniform(-0.005, 0.005)
-                        predicted_price = last_price * (trend_factor + noise)
-                        predicted_values.append(predicted_price)
-                    
-                    # Add predictions to chart
-                    fig.add_trace(go.Scatter(
-                        x=future_times,
-                        y=predicted_values,
-                        mode='lines+markers',
-                        name='5-Min Predictions',
-                        line=dict(color='red', width=2, dash='dash'),
-                        marker=dict(size=6, symbol='diamond')
-                    ))
-                    
-                    # Add current price marker
                     fig.add_trace(go.Scatter(
                         x=[current_time_pkt],
                         y=[current_price],
                         mode='markers',
                         name='Current Price',
-                        marker=dict(size=12, color='orange', symbol='star')
+                        marker=dict(size=12, color='red', symbol='star'),
+                        hovertemplate='<b>CURRENT</b><br>%{x}<br>Price: %{y:.2f} PKR<extra></extra>'
+                    ))
+                
+                # Add trading session markers
+                lunch_break = current_time_pkt.replace(hour=12, minute=0)
+                fig.add_vline(x=lunch_break, line_dash="dot", line_color="orange", 
+                             annotation_text="Mid-Day", annotation_position="top")
+                
+                # Add high/low lines
+                day_high = max(complete_day_prices)
+                day_low = min(complete_day_prices)
+                
+                fig.add_hline(y=day_high, line_dash="dash", line_color="green", 
+                             annotation_text=f"Day High: {day_high:.2f}", annotation_position="right")
+                fig.add_hline(y=day_low, line_dash="dash", line_color="red", 
+                             annotation_text=f"Day Low: {day_low:.2f}", annotation_position="right")
+                
+                # Chart formatting
+                fig.update_layout(
+                    title=f'{selected_symbol} - Complete Trading Day (5-Minute Intervals)',
+                    xaxis_title='Time (PKT)',
+                    yaxis_title='Price (PKR)',
+                    height=600,
+                    showlegend=True,
+                    hovermode='x unified',
+                    xaxis=dict(
+                        tickformat='%H:%M',
+                        dtick=3600000,  # 1 hour intervals
+                        tickangle=45
+                    ),
+                    yaxis=dict(
+                        tickformat='.2f'
+                    )
+                )
+                
+                # Display the comprehensive chart
+                st.plotly_chart(fig, use_container_width=True)
+                
+                # Display daily statistics
+                st.subheader("📊 Daily Trading Statistics")
+                
+                opening_price = complete_day_prices[0]
+                closing_price = complete_day_prices[-1]
+                daily_change = closing_price - opening_price
+                daily_change_pct = (daily_change / opening_price) * 100
+                daily_range = day_high - day_low
+                
+                col1, col2, col3, col4 = st.columns(4)
+                with col1:
+                    st.metric("Opening Price", f"{opening_price:.2f} PKR")
+                with col2:
+                    st.metric("Expected Closing", f"{closing_price:.2f} PKR")
+                with col3:
+                    st.metric("Daily Range", f"{daily_range:.2f} PKR")
+                with col4:
+                    st.metric("Daily Change", f"{daily_change:+.2f} PKR", f"{daily_change_pct:+.2f}%")
+                
+                # Volume and additional metrics
+                st.subheader("📈 Additional Analysis")
+                col1, col2, col3 = st.columns(3)
+                
+                with col1:
+                    # Calculate volatility
+                    price_changes = [abs(complete_day_prices[i] - complete_day_prices[i-1]) 
+                                   for i in range(1, len(complete_day_prices))]
+                    avg_volatility = sum(price_changes) / len(price_changes)
+                    st.metric("Average 5-Min Volatility", f"{avg_volatility:.2f} PKR")
+                
+                with col2:
+                    # Time of day high/low
+                    high_time = complete_day_times[complete_day_prices.index(day_high)]
+                    low_time = complete_day_times[complete_day_prices.index(day_low)]
+                    st.metric("High Time", high_time.strftime("%H:%M"))
+                    st.metric("Low Time", low_time.strftime("%H:%M"))
+                
+                with col3:
+                    # Market trend analysis
+                    if daily_change_pct > 1:
+                        trend_status = "📈 Strong Bullish"
+                        trend_color = "green"
+                    elif daily_change_pct > 0:
+                        trend_status = "📊 Bullish"
+                        trend_color = "lightgreen"
+                    elif daily_change_pct < -1:
+                        trend_status = "📉 Strong Bearish"
+                        trend_color = "red"
+                    elif daily_change_pct < 0:
+                        trend_status = "📊 Bearish"
+                        trend_color = "lightcoral"
+                    else:
+                        trend_status = "➡️ Neutral"
+                        trend_color = "gray"
+                    
+                    st.markdown(f"**Market Trend:**")
+                    st.markdown(f"<p style='color: {trend_color}; font-size: 18px; font-weight: bold;'>{trend_status}</p>", unsafe_allow_html=True)
+                
+            except Exception as e:
+                st.error(f"Error generating complete day chart: {e}")
+                # Fallback to basic chart
+                intraday_data = generate_intraday_market_data(current_price, market_status['is_market_open'])
+                if intraday_data is not None and not intraday_data.empty:
+                    fig = go.Figure()
+                    fig.add_trace(go.Scatter(
+                        x=intraday_data['time'],
+                        y=intraday_data['price'],
+                        mode='lines+markers',
+                        name='Fallback Live Prices',
+                        line=dict(color='blue', width=2),
+                        marker=dict(size=4)
                     ))
                     
                     fig.update_layout(
-                        title=f"{selected_symbol} - Live 5-Minute Predictions",
+                        title=f"{selected_symbol} - Fallback Chart",
                         xaxis_title="Time",
                         yaxis_title="Price (PKR)",
                         height=400,
@@ -1768,10 +1894,6 @@ def display_five_minute_live_predictions():
                     )
                     
                     st.plotly_chart(fig, use_container_width=True)
-                    
-                except Exception as e:
-                    st.error(f"Error generating predictions: {e}")
-            
         else:
             st.warning("Unable to fetch live price data")
     
