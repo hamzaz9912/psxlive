@@ -2099,7 +2099,9 @@ def display_five_minute_live_predictions():
                 
                 # Generate 5-minute intervals for afternoon session (3.5 hours = 42 intervals)
                 for i in range(43):
-                    time_point = start_time + timedelta(minutes=5 * i)
+                    # Use explicit timedelta multiplication to avoid type errors
+                    minutes_to_add = timedelta(minutes=5) * i
+                    time_point = start_time + minutes_to_add
                     afternoon_times.append(time_point)
                     
                     # Generate realistic price progression for afternoon session
@@ -2199,6 +2201,10 @@ def display_five_minute_live_predictions():
             st.subheader("📈 Complete Trading Day Forecast")
             
             try:
+                # Import required modules
+                import random
+                from datetime import datetime, timedelta
+                
                 # Create time points for full trading day (9:30 AM to 3:30 PM)
                 full_day_times = []
                 full_day_prices = []
@@ -2208,7 +2214,9 @@ def display_five_minute_live_predictions():
                 
                 # Generate 10-minute intervals for full day (6 hours = 36 intervals)
                 for i in range(37):
-                    time_point = start_time + timedelta(minutes=10 * i)
+                    # Use explicit timedelta multiplication to avoid type errors
+                    minutes_to_add = timedelta(minutes=10) * i
+                    time_point = start_time + minutes_to_add
                     full_day_times.append(time_point)
                     
                     # Generate realistic price progression for full trading day
