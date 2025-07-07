@@ -1707,20 +1707,25 @@ def display_five_minute_live_predictions():
             
             # Create comprehensive full-day 5-minute data
             try:
-                # Generate complete trading day data (9:30 AM to 3:30 PM PKT)
+                # Generate complete trading day data (9:30 AM to 3:00 PM PKT)
                 trading_start = current_time_pkt.replace(hour=9, minute=30, second=0, microsecond=0)
-                trading_end = current_time_pkt.replace(hour=15, minute=30, second=0, microsecond=0)
+                trading_end = current_time_pkt.replace(hour=15, minute=0, second=0, microsecond=0)
+                
+                # Calculate total 5-minute intervals from 9:30 AM to 3:00 PM (5.5 hours = 66 intervals)
+                total_minutes = int((trading_end - trading_start).total_seconds() / 60)
+                total_intervals = (total_minutes // 5) + 1  # Add 1 to include the start time
                 
                 # Generate 5-minute intervals for complete day
                 complete_day_times = []
                 complete_day_prices = []
                 
-                current_interval = trading_start
                 base_price = current_price
                 
-                # Generate 72 intervals (6 hours * 12 intervals per hour)
-                for i in range(73):
-                    complete_day_times.append(current_interval)
+                # Generate all 5-minute intervals
+                for i in range(total_intervals):
+                    # Calculate current time interval
+                    interval_time = trading_start + timedelta(minutes=5 * i)
+                    complete_day_times.append(interval_time)
                     
                     if i == 0:
                         # Opening price with slight variation
@@ -1730,22 +1735,27 @@ def display_five_minute_live_predictions():
                         previous_price = complete_day_prices[-1]
                         
                         # Different volatility patterns based on time of day
-                        hour = current_interval.hour
-                        if 9 <= hour < 11:  # Morning session - higher volatility
+                        hour = interval_time.hour
+                        minute = interval_time.minute
+                        
+                        if hour == 9 or (hour == 10 and minute < 30):  # Early morning - higher volatility
                             volatility = random.uniform(-0.008, 0.012)
-                        elif 11 <= hour < 13:  # Mid-day - moderate volatility
+                        elif hour == 10 and minute >= 30 or hour == 11:  # Late morning - high volatility
+                            volatility = random.uniform(-0.009, 0.013)
+                        elif hour == 12:  # Mid-day - moderate volatility
                             volatility = random.uniform(-0.006, 0.008)
-                        elif 13 <= hour < 15:  # Afternoon - varying volatility
+                        elif hour == 13:  # Early afternoon - moderate volatility
                             volatility = random.uniform(-0.007, 0.010)
+                        elif hour == 14:  # Late afternoon - varying volatility
+                            volatility = random.uniform(-0.008, 0.009)
                         else:  # Closing time - end-of-day patterns
                             volatility = random.uniform(-0.005, 0.006)
                         
-                        # Apply market trend bias
-                        trend_bias = price_change_pct * 0.001  # Convert percentage to decimal
+                        # Apply market trend bias (smaller for more realistic movement)
+                        trend_bias = (price_change_pct / 100) * 0.01  # Convert percentage to small decimal
                         price = previous_price * (1 + volatility + trend_bias)
                     
                     complete_day_prices.append(price)
-                    current_interval += timedelta(minutes=5)
                 
                 # Create the comprehensive chart
                 fig = go.Figure()
@@ -1792,7 +1802,7 @@ def display_five_minute_live_predictions():
                 
                 # Chart formatting
                 fig.update_layout(
-                    title=f'{selected_symbol} - Complete Trading Day (5-Minute Intervals)',
+                    title=f'{selected_symbol} - Complete Trading Day (9:30 AM - 3:00 PM PKT) - Every 5 Minutes',
                     xaxis_title='Time (PKT)',
                     yaxis_title='Price (PKR)',
                     height=600,
@@ -1800,8 +1810,9 @@ def display_five_minute_live_predictions():
                     hovermode='x unified',
                     xaxis=dict(
                         tickformat='%H:%M',
-                        dtick=3600000,  # 1 hour intervals
-                        tickangle=45
+                        dtick=1800000,  # 30-minute intervals for better readability
+                        tickangle=45,
+                        range=[trading_start, trading_end]
                     ),
                     yaxis=dict(
                         tickformat='.2f'
@@ -1813,6 +1824,9 @@ def display_five_minute_live_predictions():
                 
                 # Display daily statistics
                 st.subheader("📊 Daily Trading Statistics")
+                
+                # Debug information
+                st.info(f"📊 Chart Data: {len(complete_day_times)} intervals from {complete_day_times[0].strftime('%H:%M')} to {complete_day_times[-1].strftime('%H:%M')}")
                 
                 opening_price = complete_day_prices[0]
                 closing_price = complete_day_prices[-1]
