@@ -617,6 +617,128 @@ class DataFetcher:
         except Exception as e:
             return None
     
+    def _fetch_investing_live(self, symbol):
+        """Fetch live prices from investing.com for PSX companies"""
+        try:
+            headers = {
+                'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/91.0.4472.124 Safari/537.36',
+                'Accept': 'text/html,application/xhtml+xml,application/xml;q=0.9,image/webp,*/*;q=0.8',
+                'Accept-Language': 'en-US,en;q=0.5',
+                'Connection': 'keep-alive',
+            }
+            
+            # Try multiple URL patterns for PSX companies
+            url_patterns = [
+                f"https://www.investing.com/equities/{symbol.lower()}-pakistan",
+                f"https://www.investing.com/equities/{symbol.lower()}",
+                f"https://www.investing.com/indices/kse-100" if symbol == "KSE-100" else None
+            ]
+            
+            for url in url_patterns:
+                if not url:
+                    continue
+                    
+                try:
+                    response = requests.get(url, headers=headers, timeout=8)
+                    if response.status_code == 200:
+                        soup = BeautifulSoup(response.content, 'html.parser')
+                        
+                        # Enhanced price selectors for investing.com
+                        price_selectors = [
+                            'span[data-test="instrument-price-last"]',
+                            '.text-2xl',
+                            '.instrument-price_last__2x8pF',
+                            '.pid-overview-price-last',
+                            '[data-test="instrument-price-last"]',
+                            '.price-large',
+                            '.last-price-value',
+                            '.instrument-price-last'
+                        ]
+                        
+                        for selector in price_selectors:
+                            elements = soup.select(selector)
+                            for element in elements:
+                                price_text = element.get_text().strip()
+                                matches = re.findall(r'([0-9,]+\.?[0-9]*)', price_text.replace(',', ''))
+                                if matches:
+                                    try:
+                                        price = float(matches[0])
+                                        if price > 0:
+                                            return {
+                                                'price': price,
+                                                'timestamp': datetime.now(),
+                                                'source': 'investing.com_live'
+                                            }
+                                    except (ValueError, IndexError):
+                                        continue
+                except Exception:
+                    continue
+                    
+        except Exception as e:
+            print(f"Error fetching live data from investing.com: {e}")
+            return None
+    
+    def _fetch_yahoo_realtime(self, symbol):
+        """Fetch real-time prices from Yahoo Finance for PSX companies"""
+        try:
+            headers = {
+                'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/91.0.4472.124 Safari/537.36',
+                'Accept': 'text/html,application/xhtml+xml,application/xml;q=0.9,image/webp,*/*;q=0.8',
+                'Accept-Language': 'en-US,en;q=0.5',
+                'Connection': 'keep-alive',
+            }
+            
+            # Try multiple URL patterns for PSX companies on Yahoo Finance
+            url_patterns = [
+                f"https://finance.yahoo.com/quote/{symbol}.KA",  # Karachi Stock Exchange
+                f"https://finance.yahoo.com/quote/{symbol}",
+                f"https://finance.yahoo.com/quote/^KSE" if symbol == "KSE-100" else None
+            ]
+            
+            for url in url_patterns:
+                if not url:
+                    continue
+                    
+                try:
+                    response = requests.get(url, headers=headers, timeout=8)
+                    if response.status_code == 200:
+                        soup = BeautifulSoup(response.content, 'html.parser')
+                        
+                        # Yahoo Finance price selectors
+                        price_selectors = [
+                            'fin-streamer[data-field="regularMarketPrice"]',
+                            'span[data-reactid*="regularMarketPrice"]',
+                            '.Trsdu\\(0\\.3s\\)',
+                            'fin-streamer[data-symbol]',
+                            '.Fw\\(b\\).Fz\\(36px\\)',
+                            'span[data-field="regularMarketPrice"]',
+                            '.price-section-container span',
+                            '.quote-header-section span'
+                        ]
+                        
+                        for selector in price_selectors:
+                            elements = soup.select(selector)
+                            for element in elements:
+                                price_text = element.get_text().strip()
+                                matches = re.findall(r'([0-9,]+\.?[0-9]*)', price_text.replace(',', ''))
+                                if matches:
+                                    try:
+                                        price = float(matches[0])
+                                        if price > 0:
+                                            return {
+                                                'price': price,
+                                                'timestamp': datetime.now(),
+                                                'source': 'yahoo_finance_realtime'
+                                            }
+                                    except (ValueError, IndexError):
+                                        continue
+                except Exception:
+                    continue
+                    
+        except Exception as e:
+            print(f"Error fetching real-time data from Yahoo Finance: {e}")
+            return None
+    
     def _fetch_from_psx_official(self):
         """Fetch data from PSX official website"""
         try:
