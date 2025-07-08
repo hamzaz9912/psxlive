@@ -633,7 +633,7 @@ class DataFetcher:
         
         # Current accurate PSX market prices (July 2025)
         current_market_prices = {
-            'KSE-100': 128199.42,  # Current PSX KSE-100 index (user provided)
+            'KSE-100': 132897.26,  # Current PSX KSE-100 index (user provided)
             'OGDC': 195.50,        # Oil & Gas Development Company  
             'LUCK': 1150.00,       # Lucky Cement
             'PSO': 245.25,         # Pakistan State Oil
@@ -727,8 +727,66 @@ class DataFetcher:
         except Exception:
             pass
         
-        # Fallback: Generate realistic current price
+        # Fallback: Use real-time web scraping from financial sites
+        scraped_price = self._scrape_real_time_price(symbol)
+        if scraped_price:
+            return scraped_price
+        
+        # Final fallback: Generate realistic current price
         return self._generate_realistic_current_price(symbol)
+    
+    def _scrape_real_time_price(self, symbol):
+        """Scrape real-time prices from Pakistani financial websites"""
+        try:
+            # For KSE-100, use Pakistani financial news sites
+            if symbol == "KSE-100":
+                urls_to_try = [
+                    ("https://www.businessrecorder.com.pk/", "Business Recorder"),
+                    ("https://www.dawn.com/business", "Dawn Business"),
+                    ("https://www.thenews.com.pk/business", "The News Business")
+                ]
+                
+                for url, site_name in urls_to_try:
+                    try:
+                        headers = {
+                            'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36',
+                            'Accept': 'text/html,application/xhtml+xml,application/xml;q=0.9,image/webp,*/*;q=0.8'
+                        }
+                        
+                        response = self.session.get(url, headers=headers, timeout=8)
+                        if response.status_code == 200:
+                            content = response.text
+                            
+                            # Enhanced pattern matching for KSE-100 index
+                            patterns = [
+                                r'kse.?100[^\d]*([1-9][0-9,]{4,6}\.?[0-9]*)',
+                                r'index[^\d]*([1-9][0-9,]{4,6}\.?[0-9]*)',
+                                r'([1-9][0-9,]{4,6}\.?[0-9]*)[^\d]*points?',
+                                r'psx[^\d]*([1-9][0-9,]{4,6}\.?[0-9]*)',
+                                r'karachi[^\d]*stock[^\d]*([1-9][0-9,]{4,6}\.?[0-9]*)'
+                            ]
+                            
+                            for pattern in patterns:
+                                matches = re.findall(pattern, content, re.IGNORECASE)
+                                for match in matches:
+                                    try:
+                                        price = float(match.replace(',', ''))
+                                        # Validate KSE-100 range (current market around 130k+)
+                                        if 120000 <= price <= 150000:
+                                            return {
+                                                'price': price,
+                                                'timestamp': datetime.now(),
+                                                'source': f'live_scraped_{site_name.lower().replace(" ", "_")}'
+                                            }
+                                    except ValueError:
+                                        continue
+                    except Exception:
+                        continue
+                        
+        except Exception:
+            pass
+        
+        return None
     
     def _fetch_psx_live_api(self, symbol):
         """Fetch from PSX official live data sources with enhanced real-time capabilities"""
