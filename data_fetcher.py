@@ -156,22 +156,50 @@ class DataFetcher:
                     'symbol': symbol
                 }
             else:
-                # Use fallback data if live price unavailable
-                historical_data = self._generate_sample_company_data(symbol)
-                current_price = historical_data['close'].iloc[-1] if not historical_data.empty else 100
+                # Show error message when live price is unavailable
+                st.warning(f"❌ Unable to fetch live price for {company_name} ({symbol})")
                 companies_data[company_name] = {
-                    'current_price': current_price,
+                    'current_price': None,
                     'timestamp': datetime.now(),
-                    'source': 'simulated',
-                    'historical_data': historical_data,
-                    'symbol': symbol
+                    'source': 'unavailable',
+                    'historical_data': pd.DataFrame(),  # Empty dataframe
+                    'symbol': symbol,
+                    'error': 'Live price data not available from any source'
                 }
         
         progress_bar.empty()
+        
+        # Display data source summary
+        if companies_data:
+            sources_summary = {}
+            successful_fetches = 0
+            failed_fetches = 0
+            
+            for company_name, data in companies_data.items():
+                source = data.get('source', 'unknown')
+                if source == 'unavailable':
+                    failed_fetches += 1
+                else:
+                    successful_fetches += 1
+                    if source not in sources_summary:
+                        sources_summary[source] = 0
+                    sources_summary[source] += 1
+            
+            st.success(f"✅ **Live Data Fetching Complete**")
+            st.info(f"📊 **Data Sources Summary:** {successful_fetches} successful, {failed_fetches} failed")
+            
+            if sources_summary:
+                st.write("**Authentic Data Sources Used:**")
+                for source, count in sources_summary.items():
+                    st.write(f"  • {source}: {count} companies")
+            
+            if failed_fetches > 0:
+                st.warning(f"⚠️ {failed_fetches} companies could not be fetched from live sources. Consider checking data provider availability.")
+        
         return companies_data
     
     def get_live_company_price(self, symbol):
-        """Get accurate live price for specific PSX companies (July 2025 market data)"""
+        """Get live price for specific PSX companies from authentic sources"""
         
         # Check cache first (30 seconds)
         cache_key = f"company_{symbol}"
@@ -182,126 +210,118 @@ class DataFetcher:
             (current_time - self.cache_timestamp).total_seconds() < 30):
             return self.live_price_cache[cache_key]
         
-        # Current accurate PSX company prices (July 2025)
-        current_company_prices = {
-            'OGDC': 195.50,        # Oil & Gas Development Company  
-            'LUCK': 1150.00,       # Lucky Cement
-            'PSO': 245.25,         # Pakistan State Oil
-            'HBL': 145.75,         # Habib Bank Limited
-            'MCB': 275.50,         # MCB Bank
-            'UBL': 195.25,         # United Bank Limited
-            'ENGRO': 315.75,       # Engro Corporation
-            'FCCL': 105.50,        # Fauji Cement Company
-            'NBP': 48.25,          # National Bank of Pakistan
-            'HUBC': 125.75,        # Hub Power Company
-            'MEBL': 195.50,        # Meezan Bank
-            'FFC': 145.25,         # Fauji Fertilizer Company
-            'SSGC': 22.75,         # Sui Southern Gas Company
-            'SNGP': 55.50,         # Sui Northern Gas Pipelines
-            'PPL': 135.75,         # Pakistan Petroleum Limited
-            'MARI': 1950.50,       # Mari Petroleum Company
-            'TRG': 145.25,         # TRG Pakistan Limited
-            'BAFL': 350.75,        # Bank Alfalah Limited
-            'BAHL': 65.50,         # Bank Al Habib Limited
-            'FFBL': 285.25,        # Fauji Fertilizer Bin Qasim
-            'KAPCO': 45.75,        # Kot Addu Power Company
-            'AKBL': 195.50,        # Askari Bank Limited
-            'CHCC': 185.25,        # Cherat Cement Company
-            'DGKC': 125.75,        # D. G. Khan Cement Company
-            'ABOT': 855.25,        # Abbott Laboratories
-            'AGP': 95.50,          # AGP Limited
-            'AIRLINK': 145.75,     # Airlink Communication Limited
-            'APL': 1250.50,        # Attock Petroleum Limited
-            'ASTL': 185.25,        # Agha Steel Industries Limited
-            'MLCF': 395.75,        # Maple Leaf Cement Factory
-            'GATM': 125.50,        # Gatron Industries Limited
-            'POWER': 85.25,        # Power Cement Limited
-            'PIOC': 185.75,        # Pioneer Cement Limited
-            'LOADS': 45.25,        # Loads Limited
-        }
+        # Try multiple live data sources for authentic prices
+        sources = [
+            self._fetch_psx_live_api,
+            self._fetch_from_psx_official_live,
+            self._fetch_from_khadim_ali_shah,
+            self._fetch_investing_live,
+            self._fetch_yahoo_realtime,
+        ]
         
-        # Get accurate price with small intraday variation
-        if symbol in current_company_prices:
-            base_price = current_company_prices[symbol]
-            # Add realistic intraday movement (±1.5%)
-            import random
-            variation = random.uniform(-0.015, 0.015)
-            current_price = base_price * (1 + variation)
-            
-            price_data = {
-                'price': round(current_price, 2),
-                'timestamp': current_time,
-                'source': 'current_market_data',
-                'base_price': base_price
-            }
-            
-            # Cache the result
-            self.live_price_cache[cache_key] = price_data
-            self.cache_timestamp = current_time
-            return price_data
-        else:
-            # Try external sources for unlisted companies
-            sources = [
-                self._fetch_psx_live_api,
-                self._fetch_investing_live,
-                self._fetch_yahoo_realtime,
-                self._fetch_from_khadim_ali_shah
-            ]
-            
-            for source_func in sources:
-                try:
-                    price_data = source_func(symbol)
-                    if price_data and price_data.get('price', 0) > 0:
+        for source_func in sources:
+            try:
+                price_data = source_func(symbol)
+                if price_data and price_data.get('price', 0) > 0:
+                    # Validate price is reasonable for the symbol
+                    if self._is_valid_price_for_symbol(symbol, price_data['price']):
                         # Cache the result
                         self.live_price_cache[cache_key] = price_data
                         self.cache_timestamp = current_time
                         return price_data
-                except Exception:
-                    continue
-            
-            # Generate reasonable estimate for unknown companies
-            import random
-            estimated_price = random.uniform(50, 300)
+            except Exception as e:
+                continue
+        
+        # If all sources fail, try generating realistic price based on historical patterns
+        try:
+            realistic_price = self._generate_realistic_company_price(symbol)
             price_data = {
-                'price': round(estimated_price, 2),
+                'price': realistic_price,
                 'timestamp': current_time,
-                'source': 'estimated'
+                'source': 'historical_pattern_estimate'
             }
             
             self.live_price_cache[cache_key] = price_data
             self.cache_timestamp = current_time
             return price_data
+        except Exception:
+            # Final fallback - return None to indicate no price available
+            return None
     
     def _fetch_from_khadim_ali_shah(self, symbol):
-        """Fetch from PSX data providers like KAS"""
+        """Fetch from PSX data providers and authentic Pakistani financial sources"""
         try:
-            # KAS Live data (common PSX data provider)
-            url = f"https://www.khadim.pk/stock/{symbol.lower()}"
-            response = self.session.get(url, timeout=5)
+            # Try multiple authentic Pakistani financial data sources
+            sources = [
+                f"https://www.businessrecorder.com.pk/stocks/{symbol.lower()}",
+                f"https://profit.pakistantoday.com.pk/stock/{symbol.upper()}",
+                f"https://www.dawn.com/business/stocks/{symbol.lower()}",
+                f"https://www.thenews.com.pk/stocks/{symbol.lower()}",
+                f"https://www.khadim.pk/stock/{symbol.lower()}",
+                f"https://kas.com.pk/stock/{symbol.lower()}"
+            ]
             
-            if response.status_code == 200:
-                soup = BeautifulSoup(response.content, 'html.parser')
-                
-                # Look for price patterns
-                price_patterns = [
-                    r'price["\']?\s*:\s*["\']?(\d+\.?\d*)',
-                    r'current["\']?\s*:\s*["\']?(\d+\.?\d*)',
-                    r'last["\']?\s*:\s*["\']?(\d+\.?\d*)'
-                ]
-                
-                for pattern in price_patterns:
-                    matches = re.findall(pattern, response.text, re.IGNORECASE)
-                    for match in matches:
-                        try:
-                            price = float(match)
-                            if self._is_valid_price_for_symbol(symbol, price):
-                                return {
-                                    'price': price,
-                                    'timestamp': datetime.now(),
-                                    'source': 'kas'
-                                }
-                        except ValueError:
-                            continue
+            for url in sources:
+                try:
+                    response = self.session.get(url, timeout=8)
+                    
+                    if response.status_code == 200:
+                        soup = BeautifulSoup(response.content, 'html.parser')
+                        
+                        # Enhanced price patterns for Pakistani financial websites
+                        price_patterns = [
+                            r'price["\']?\s*:\s*["\']?(\d+\.?\d*)',
+                            r'current["\']?\s*:\s*["\']?(\d+\.?\d*)',
+                            r'last["\']?\s*:\s*["\']?(\d+\.?\d*)',
+                            r'close["\']?\s*:\s*["\']?(\d+\.?\d*)',
+                            r'Rs\.\s*(\d+\.?\d*)',
+                            r'PKR\s*(\d+\.?\d*)',
+                            r'rate["\']?\s*:\s*["\']?(\d+\.?\d*)',
+                            r'value["\']?\s*:\s*["\']?(\d+\.?\d*)'
+                        ]
+                        
+                        # Try extracting from response text
+                        for pattern in price_patterns:
+                            matches = re.findall(pattern, response.text, re.IGNORECASE)
+                            for match in matches:
+                                try:
+                                    price = float(match)
+                                    if self._is_valid_price_for_symbol(symbol, price):
+                                        return {
+                                            'price': price,
+                                            'timestamp': datetime.now(),
+                                            'source': f'pakistani_financial_source_{url.split("/")[2]}'
+                                        }
+                                except ValueError:
+                                    continue
+                        
+                        # Try extracting from HTML elements
+                        price_selectors = [
+                            '.price', '.current-price', '.last-price', '.stock-price',
+                            '[data-price]', '[data-current]', '[data-last]',
+                            'span.price', 'div.price', 'td.price',
+                            '.quote-price', '.stock-quote', '.market-price'
+                        ]
+                        
+                        for selector in price_selectors:
+                            elements = soup.select(selector)
+                            for element in elements:
+                                text = element.get_text(strip=True)
+                                # Extract numeric values
+                                numbers = re.findall(r'(\d+\.?\d*)', text.replace(',', ''))
+                                for num in numbers:
+                                    try:
+                                        price = float(num)
+                                        if self._is_valid_price_for_symbol(symbol, price):
+                                            return {
+                                                'price': price,
+                                                'timestamp': datetime.now(),
+                                                'source': f'pakistani_financial_source_{url.split("/")[2]}'
+                                            }
+                                    except ValueError:
+                                        continue
+                except Exception:
+                    continue
             
             return None
             
@@ -388,36 +408,87 @@ class DataFetcher:
     
     def _generate_realistic_company_price(self, symbol):
         """Generate realistic current price for a company based on historical patterns"""
-        # Base prices for different companies
-        base_prices = {
-            'OGDC': 120, 'HBL': 180, 'MCB': 220, 'ENGRO': 350, 'LUCK': 650,
-            'PSO': 200, 'UBL': 170, 'FFC': 95, 'PPL': 80, 'NBP': 45,
-            'HUBC': 85, 'SYS': 1000, 'PTC': 1400, 'MTL': 1200, 'NESTLE': 5800,
-            'UNILEVER': 4500, 'TRG': 130, 'ILP': 70, 'PKGS': 480, 'DGKC': 75,
-            'POL': 300, 'MARI': 1200, 'ABL': 85, 'BAFL': 35, 'MEBL': 95,
-            'JSBL': 6.5, 'FABL': 25, 'BAHL': 45, 'EFERT': 65, 'FFBL': 22,
-            'FATIMA': 28, 'MLCF': 45, 'PIOC': 18, 'KOHC': 170, 'ACPL': 35,
-            'CHCC': 140, 'KEL': 4.2, 'KAPCO': 25, 'NPL': 18, 'LOTTE': 18,
-            'NML': 65, 'GATM': 28, 'KOHTM': 7.5, 'CTM': 35, 'NETSOL': 85,
-            'AVN': 45, 'COLG': 2400, 'NATF': 180, 'MUREB': 450, 'FEP': 95,
-            'INDU': 1350, 'PSMC': 220, 'ATLH': 320, 'HINO': 285, 'ICI': 850,
-            'SEARL': 180, 'GSK': 140, 'ABT': 850, 'ASL': 55, 'ISL': 85,
-            'ARSL': 45, 'AGTL': 420, 'CPL': 8.5, 'SPL': 18, 'AICL': 55,
-            'EFUL': 320, 'JLICL': 380, 'JDW': 220, 'AABS': 12, 'SML': 85,
-            'LCI': 220, 'SIL': 580, 'DAWH': 95
-        }
+        # This method now only tries to fetch from authentic sources
+        # No hardcoded prices - only live data fetching
         
-        base_price = base_prices.get(symbol, 100)
-        
-        # Add realistic daily movement (±3%)
-        movement = np.random.uniform(-0.03, 0.03)
-        current_price = base_price * (1 + movement)
-        
-        return {
-            'price': round(current_price, 2),
-            'timestamp': datetime.now(),
-            'source': 'simulated'
-        }
+        # Try enhanced web scraping from multiple Pakistani financial sources
+        try:
+            # Enhanced scraping from financial websites
+            sources = [
+                f"https://www.businessrecorder.com.pk/stocks/{symbol.lower()}",
+                f"https://www.dawn.com/business/stocks/{symbol.lower()}",
+                f"https://profit.pakistantoday.com.pk/stock/{symbol.upper()}",
+                f"https://www.thenews.com.pk/stocks/{symbol.lower()}",
+                f"https://www.psx.com.pk/psx/themes/psx/live-quotes/{symbol}",
+                f"https://www.khadim.pk/stock/{symbol.lower()}",
+            ]
+            
+            for url in sources:
+                try:
+                    response = self.session.get(url, timeout=8)
+                    if response.status_code == 200:
+                        # Use trafilatura for clean text extraction
+                        clean_text = trafilatura.extract(response.text)
+                        if clean_text:
+                            # Look for price patterns in clean text
+                            price_patterns = [
+                                r'Rs\.\s*(\d+\.?\d*)',
+                                r'PKR\s*(\d+\.?\d*)',
+                                r'price[:\s]*(\d+\.?\d*)',
+                                r'current[:\s]*(\d+\.?\d*)',
+                                r'close[:\s]*(\d+\.?\d*)',
+                                r'last[:\s]*(\d+\.?\d*)',
+                                r'(\d+\.?\d*)\s*Rs',
+                                r'(\d+\.?\d*)\s*PKR'
+                            ]
+                            
+                            for pattern in price_patterns:
+                                matches = re.findall(pattern, clean_text, re.IGNORECASE)
+                                for match in matches:
+                                    try:
+                                        price = float(match)
+                                        if self._is_valid_price_for_symbol(symbol, price):
+                                            return {
+                                                'price': price,
+                                                'timestamp': datetime.now(),
+                                                'source': f'live_scraping_{url.split("/")[2]}'
+                                            }
+                                    except ValueError:
+                                        continue
+                        
+                        # Also try BeautifulSoup HTML parsing
+                        soup = BeautifulSoup(response.content, 'html.parser')
+                        selectors = [
+                            '.price', '.current-price', '.last-price', '.stock-price',
+                            '[data-price]', 'span.price', 'div.price', 'td.price',
+                            '.quote-price', '.market-price'
+                        ]
+                        
+                        for selector in selectors:
+                            elements = soup.select(selector)
+                            for element in elements:
+                                text = element.get_text(strip=True)
+                                numbers = re.findall(r'(\d+\.?\d*)', text.replace(',', ''))
+                                for num in numbers:
+                                    try:
+                                        price = float(num)
+                                        if self._is_valid_price_for_symbol(symbol, price):
+                                            return {
+                                                'price': price,
+                                                'timestamp': datetime.now(),
+                                                'source': f'live_scraping_{url.split("/")[2]}'
+                                            }
+                                    except ValueError:
+                                        continue
+                except Exception:
+                    continue
+            
+            # If no authentic source found, return None rather than hardcoded data
+            return None
+                
+        except Exception:
+            # Return None if all sources fail - no fallback to hardcoded prices
+            return None
     
     @st.cache_data(ttl=300)  # Cache for 5 minutes
     def fetch_kse100_data(_self):
@@ -804,216 +875,180 @@ class DataFetcher:
                 'Cache-Control': 'max-age=0'
             }
             
-            if symbol == "KSE-100":
-                # Enhanced KSE-100 real-time data sources
-                urls = [
-                    "https://www.psx.com.pk/psx/themes/psx/uploads/live-price/kse100.json",
-                    "https://dps.psx.com.pk/kse100/live",
-                    "https://www.psx.com.pk/psx/land-api/live-index",
-                    "https://api.psx.com.pk/v1/kse100/current",
-                    "https://www.psx.com.pk/"  # Main website scraping
-                ]
-                
-                for url in urls:
-                    try:
-                        response = self.session.get(url, headers=headers, timeout=10)
-                        if response.status_code == 200:
-                            
-                            # JSON response handling
-                            if 'json' in url.lower() or 'api' in url.lower():
-                                try:
-                                    data = response.json()
-                                    
-                                    # Multiple JSON structure patterns
-                                    price_paths = [
-                                        ['kse100', 'current'],
-                                        ['kse100', 'value'],
-                                        ['index', 'current'],
-                                        ['current_price'], 
-                                        ['price'],
-                                        ['value'],
-                                        ['last'],
-                                        ['close']
-                                    ]
-                                    
-                                    for path in price_paths:
-                                        try:
-                                            current_data = data
-                                            for key in path:
-                                                if isinstance(current_data, dict) and key in current_data:
-                                                    current_data = current_data[key]
-                                                else:
-                                                    break
+            # Try multiple PSX data sources for all symbols
+            urls = [
+                f"https://www.psx.com.pk/psx/themes/psx/uploads/live-price/{symbol.lower()}.json",
+                f"https://dps.psx.com.pk/stock/{symbol}/live",
+                f"https://www.psx.com.pk/psx/land-api/live-quotes/{symbol}",
+                f"https://api.psx.com.pk/v1/stock/{symbol}/current",
+                f"https://www.psx.com.pk/psx/themes/psx/live-quotes/{symbol}",
+                "https://www.psx.com.pk/psx/themes/psx/uploads/live-price/kse100.json" if symbol == "KSE-100" else None,
+                "https://dps.psx.com.pk/kse100/live" if symbol == "KSE-100" else None,
+                "https://www.psx.com.pk/psx/land-api/live-index" if symbol == "KSE-100" else None,
+                "https://api.psx.com.pk/v1/kse100/current" if symbol == "KSE-100" else None,
+                "https://www.psx.com.pk/" if symbol == "KSE-100" else None
+            ]
+            
+            # Remove None values
+            urls = [url for url in urls if url is not None]
+            
+            for url in urls:
+                try:
+                    response = self.session.get(url, headers=headers, timeout=10)
+                    if response.status_code == 200:
+                        
+                        # JSON response handling
+                        if 'json' in url.lower() or 'api' in url.lower():
+                            try:
+                                data = response.json()
+                                
+                                # Multiple JSON structure patterns
+                                price_paths = [
+                                    ['kse100', 'current'],
+                                    ['kse100', 'value'],
+                                    ['index', 'current'],
+                                    ['current_price'], 
+                                    ['price'],
+                                    ['value'],
+                                    ['last'],
+                                    ['close'],
+                                    ['lastPrice'],
+                                    ['currentPrice'],
+                                    ['quote', 'price'],
+                                    ['stock', 'current'],
+                                    ['data', 'price'],
+                                    ['result', 'price']
+                                ]
+                                
+                                for path in price_paths:
+                                    try:
+                                        current_data = data
+                                        for key in path:
+                                            if isinstance(current_data, dict) and key in current_data:
+                                                current_data = current_data[key]
                                             else:
-                                                # Successfully navigated the path
-                                                price = float(str(current_data).replace(',', ''))
-                                                if 80000 <= price <= 120000:  # Current KSE-100 realistic range
+                                                break
+                                        else:
+                                            # Successfully navigated the path
+                                            price = float(str(current_data).replace(',', ''))
+                                            
+                                            # Validate price range based on symbol
+                                            if symbol == "KSE-100":
+                                                if 80000 <= price <= 150000:  # Current KSE-100 realistic range
                                                     return {
                                                         'price': price,
                                                         'timestamp': datetime.now(),
-                                                        'source': 'psx_api'
+                                                        'source': 'psx_live_api'
                                                     }
-                                        except (ValueError, TypeError):
-                                            continue
-                                            
-                                except (ValueError, TypeError):
-                                    pass
-                            
-                            # HTML scraping for main website
-                            soup = BeautifulSoup(response.content, 'html.parser')
-                            
-                            # Enhanced selectors for KSE-100 index
-                            selectors = [
-                                'span.kse100-value',
-                                'div.kse100-index',
-                                'span.index-value',
-                                'div.current-index',
-                                '.kse100 .value',
-                                '.index-display .number',
-                                'span[class*="kse"]',
-                                'div[class*="index"]',
-                                'span[id*="kse"]',
-                                'div[id*="index"]',
-                                '.live-price',
-                                '.current-price'
-                            ]
-                            
-                            for selector in selectors:
-                                elements = soup.select(selector)
-                                for element in elements:
-                                    text = element.get_text().strip()
-                                    # Extract numeric value
-                                    matches = re.findall(r'([0-9,]+\.?[0-9]*)', text.replace(',', ''))
-                                    for match in matches:
-                                        try:
-                                            price = float(match)
-                                            if 80000 <= price <= 120000:
-                                                return {
-                                                    'price': price,
-                                                    'timestamp': datetime.now(),
-                                                    'source': 'psx_scrape'
-                                                }
-                                        except ValueError:
-                                            continue
-                            
-                            # JavaScript variable extraction
-                            js_patterns = [
-                                r'kse100["\']?\s*[:=]\s*["\']?([0-9,]+\.?[0-9]*)',
-                                r'index["\']?\s*[:=]\s*["\']?([0-9,]+\.?[0-9]*)',
-                                r'currentIndex["\']?\s*[:=]\s*["\']?([0-9,]+\.?[0-9]*)',
-                                r'livePrice["\']?\s*[:=]\s*["\']?([0-9,]+\.?[0-9]*)'
-                            ]
-                            
-                            for pattern in js_patterns:
-                                matches = re.findall(pattern, response.text, re.IGNORECASE)
-                                for match in matches:
-                                    try:
-                                        price = float(match.replace(',', ''))
-                                        if 80000 <= price <= 120000:
-                                            return {
-                                                'price': price,
-                                                'timestamp': datetime.now(),
-                                                'source': 'psx_js'
-                                            }
-                                    except ValueError:
-                                        continue
-                                        
-                    except Exception:
-                        continue
-            
-            # Individual company data (if not KSE-100)
-            else:
-                urls = [
-                    f"https://www.psx.com.pk/psx/land-api/live-quotes/{symbol}",
-                    f"https://api.psx.com.pk/v1/stock/{symbol}/live",
-                    f"https://dps.psx.com.pk/stock/{symbol}"
-                ]
-                
-                for url in urls:
-                    try:
-                        response = self.session.get(url, headers=headers, timeout=8)
-                        if response.status_code == 200:
-                            
-                            # JSON response for individual stocks
-                            try:
-                                data = response.json()
-                                price_fields = ['price', 'current', 'last', 'ltp', 'close', 'value']
-                                
-                                for field in price_fields:
-                                    if field in data:
-                                        price = float(str(data[field]).replace(',', ''))
-                                        if self._is_valid_price_for_symbol(symbol, price):
-                                            return {
-                                                'price': price,
-                                                'timestamp': datetime.now(),
-                                                'source': 'psx_api'
-                                            }
-                                            
-                            except (ValueError, TypeError):
-                                # HTML parsing for individual stocks
-                                soup = BeautifulSoup(response.content, 'html.parser')
-                                
-                                price_selectors = [
-                                    '.stock-price',
-                                    '.current-price',
-                                    '.ltp',
-                                    '.last-price',
-                                    'td.price',
-                                    'span.price'
-                                ]
-                                
-                                for selector in price_selectors:
-                                    elements = soup.select(selector)
-                                    for element in elements:
-                                        text = element.get_text().strip()
-                                        matches = re.findall(r'([0-9,]+\.?[0-9]*)', text.replace(',', ''))
-                                        for match in matches:
-                                            try:
-                                                price = float(match)
+                                            else:
                                                 if self._is_valid_price_for_symbol(symbol, price):
                                                     return {
                                                         'price': price,
                                                         'timestamp': datetime.now(),
-                                                        'source': 'psx_scrape'
+                                                        'source': 'psx_live_api'
                                                     }
-                                            except ValueError:
-                                                continue
-                                                
-                    except Exception:
-                        continue
+                                    except (ValueError, TypeError, KeyError):
+                                        continue
+                                        
+                            except (ValueError, TypeError):
+                                pass
+                        
+                        # HTML response handling for main website
+                        soup = BeautifulSoup(response.content, 'html.parser')
+                        
+                        # Multiple selectors for different PSX website structures
+                        selectors = [
+                            '.kse100-index', '.index-value', '.current-index',
+                            '.stock-price', '.current-price', '.last-price',
+                            '[data-symbol="' + symbol + '"]', f'[data-symbol="{symbol}"]',
+                            f'#{symbol.lower()}-price', f'.{symbol.lower()}-price',
+                            '.quote-price', '.market-price', '.live-price',
+                            'td.price', 'span.price', 'div.price',
+                            '.psx-live-price', '.market-data-price'
+                        ]
+                        
+                        for selector in selectors:
+                            elements = soup.select(selector)
+                            for element in elements:
+                                text = element.get_text(strip=True)
+                                # Extract numeric price
+                                price_match = re.search(r'(\d+\.?\d*)', text.replace(',', ''))
+                                if price_match:
+                                    try:
+                                        price = float(price_match.group(1))
+                                        if symbol == "KSE-100":
+                                            if 80000 <= price <= 150000:
+                                                return {
+                                                    'price': price,
+                                                    'timestamp': datetime.now(),
+                                                    'source': 'psx_website'
+                                                }
+                                        else:
+                                            if self._is_valid_price_for_symbol(symbol, price):
+                                                return {
+                                                    'price': price,
+                                                    'timestamp': datetime.now(),
+                                                    'source': 'psx_website'
+                                                }
+                                    except ValueError:
+                                        continue
+                    
+                except Exception:
+                    continue
+            
+            # Try extracting from general Pakistani financial websites
+            pakistani_sources = [
+                f"https://www.businessrecorder.com.pk/stocks/{symbol.lower()}",
+                f"https://www.dawn.com/business/stocks/{symbol.lower()}",
+                f"https://www.thenews.com.pk/stocks/{symbol.lower()}",
+                f"https://profit.pakistantoday.com.pk/stock/{symbol.upper()}"
+            ]
+            
+            for url in pakistani_sources:
+                try:
+                    response = self.session.get(url, headers=headers, timeout=8)
+                    if response.status_code == 200:
+                        # Use trafilatura to extract clean text
+                        clean_text = trafilatura.extract(response.text)
+                        if clean_text:
+                            # Look for price patterns in clean text
+                            price_patterns = [
+                                r'Rs\.\s*(\d+\.?\d*)',
+                                r'PKR\s*(\d+\.?\d*)',
+                                r'price[:\s]*(\d+\.?\d*)',
+                                r'current[:\s]*(\d+\.?\d*)',
+                                r'(\d+\.?\d*)\s*points' if symbol == "KSE-100" else None
+                            ]
+                            
+                            for pattern in price_patterns:
+                                if pattern:
+                                    matches = re.findall(pattern, clean_text, re.IGNORECASE)
+                                    for match in matches:
+                                        try:
+                                            price = float(match)
+                                            if symbol == "KSE-100":
+                                                if 80000 <= price <= 150000:
+                                                    return {
+                                                        'price': price,
+                                                        'timestamp': datetime.now(),
+                                                        'source': f'pakistani_news_{url.split("/")[2]}'
+                                                    }
+                                            else:
+                                                if self._is_valid_price_for_symbol(symbol, price):
+                                                    return {
+                                                        'price': price,
+                                                        'timestamp': datetime.now(),
+                                                        'source': f'pakistani_news_{url.split("/")[2]}'
+                                                    }
+                                        except ValueError:
+                                            continue
+                except Exception:
+                    continue
             
             return None
-            
+                                    
         except Exception:
             return None
-    
-    def _fetch_yahoo_realtime(self, symbol):
-        """Fetch real-time price from Yahoo Finance"""
-        try:
-            # Convert symbol to Yahoo format
-            yahoo_symbol = "^KSE100" if symbol == "KSE-100" else f"{symbol}.KAR"
-            
-            # Yahoo Finance real-time quote API
-            url = f"https://query1.finance.yahoo.com/v8/finance/chart/{yahoo_symbol}"
-            
-            response = self.session.get(url, timeout=5)
-            if response.status_code == 200:
-                data = response.json()
-                
-                if 'chart' in data and 'result' in data['chart'] and data['chart']['result']:
-                    result = data['chart']['result'][0]
-                    if 'meta' in result and 'regularMarketPrice' in result['meta']:
-                        price = result['meta']['regularMarketPrice']
-                        return {'price': float(price), 'timestamp': datetime.now()}
-            
-            return None
-            
-        except Exception:
-            return None
-    
-    def _fetch_investing_live(self, symbol):
-        """Fetch live price from Investing.com"""
-        try:
             # Investing.com live price endpoint
             search_term = "kse-100" if symbol == "KSE-100" else symbol.lower()
             url = f"https://www.investing.com/indices/{search_term}"
