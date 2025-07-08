@@ -1725,7 +1725,8 @@ def display_five_minute_live_predictions():
                 # Generate all 5-minute intervals
                 for i in range(total_intervals):
                     # Calculate current time interval
-                    interval_time = trading_start + timedelta(minutes=5 * i)
+                    minutes_to_add = timedelta(minutes=5) * i
+                    interval_time = trading_start + minutes_to_add
                     complete_day_times.append(interval_time)
                     
                     if i == 0:
@@ -1984,7 +1985,8 @@ def display_five_minute_live_predictions():
                 
                 # Generate 5-minute intervals for morning session (2.5 hours = 30 intervals)
                 for i in range(31):
-                    time_point = start_time + timedelta(minutes=5 * i)
+                    minutes_to_add = timedelta(minutes=5) * i
+                    time_point = start_time + minutes_to_add
                     morning_times.append(time_point)
                     
                     # Generate realistic price progression for morning session
