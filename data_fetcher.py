@@ -232,21 +232,11 @@ class DataFetcher:
             except Exception as e:
                 continue
         
-        # If all sources fail, try generating realistic price based on historical patterns
-        try:
-            realistic_price = self._generate_realistic_company_price(symbol)
-            price_data = {
-                'price': realistic_price,
-                'timestamp': current_time,
-                'source': 'historical_pattern_estimate'
-            }
-            
-            self.live_price_cache[cache_key] = price_data
-            self.cache_timestamp = current_time
-            return price_data
-        except Exception:
-            # Final fallback - return None to indicate no price available
-            return None
+        # If all sources fail, show data unavailable message
+        print(f"All data sources failed for {symbol}. Live price data is currently unavailable.")
+        
+        # Return None to indicate no price available from authentic sources
+        return None
     
     def _fetch_from_khadim_ali_shah(self, symbol):
         """Fetch from PSX data providers and authentic Pakistani financial sources"""

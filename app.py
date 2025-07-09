@@ -1281,7 +1281,7 @@ def display_live_market_dashboard():
                     # Get live price for this company
                     live_price = st.session_state.data_fetcher.get_live_company_price(symbol)
                     
-                    if live_price:
+                    if live_price and live_price.get('price') is not None:
                         col1, col2 = st.columns([1, 1])
                         
                         with col1:
@@ -1293,6 +1293,9 @@ def display_live_market_dashboard():
                             
                             st.write(f"**Source:** {live_price['source'].upper()}")
                             st.write(f"**Last Update:** {live_price['timestamp'].strftime('%H:%M:%S')}")
+                    else:
+                        st.warning(f"⚠️ Live price data unavailable for {symbol}")
+                        st.info("Data sources may be temporarily unavailable. Trying to fetch from authentic PSX sources...")
                         
                         with col2:
                             # Quick forecast for this company
@@ -1316,11 +1319,17 @@ def display_live_market_dashboard():
                 live_price = st.session_state.data_fetcher.get_live_company_price(symbol)
                 
                 with cols[i % 3]:
-                    if live_price:
+                    if live_price and live_price.get('price') is not None:
                         st.metric(
                             symbol,
                             f"PKR {live_price['price']:,.2f}",
                             f"{np.random.uniform(-3, 3):+.2f}%"
+                        )
+                    else:
+                        st.metric(
+                            symbol,
+                            "Price Unavailable",
+                            "Data Loading..."
                         )
     
     # Performance summary
