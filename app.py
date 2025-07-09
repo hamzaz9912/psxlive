@@ -2226,7 +2226,7 @@ def display_five_minute_live_predictions():
                 # Generate 10-minute intervals for full day (6 hours = 36 intervals)
                 for i in range(37):
                     # Use explicit timedelta multiplication to avoid type errors
-                    minutes_to_add = timedelta(minutes=10) * i
+                    minutes_to_add = timedelta(minutes=10 * i)
                     time_point = start_time + minutes_to_add
                     full_day_times.append(time_point)
                     
