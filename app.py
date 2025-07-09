@@ -14,6 +14,7 @@ from visualization import ChartVisualizer
 from utils import export_to_csv, format_currency, format_market_status
 from database import get_database_manager
 from enhanced_features import display_enhanced_file_upload
+from end_of_day_forecast import display_end_of_day_forecast
 
 # Page configuration
 st.set_page_config(
@@ -89,7 +90,7 @@ def main():
         # Analysis type selection
         analysis_type = st.selectbox(
             "Select Analysis Type",
-            ["Live Market Dashboard", "⚡ 5-Minute Live Predictions", "KSE-100 Index", "Individual Companies", "Advanced Forecasting Hub", "Enhanced File Upload", "File Upload Prediction", "All Companies Live Prices", "Intraday Trading Sessions", "Comprehensive Intraday Forecasts", "Database Overview"],
+            ["Live Market Dashboard", "⚡ 5-Minute Live Predictions", "📊 End of Day Forecast", "KSE-100 Index", "Individual Companies", "Advanced Forecasting Hub", "Enhanced File Upload", "File Upload Prediction", "All Companies Live Prices", "Intraday Trading Sessions", "Comprehensive Intraday Forecasts", "Database Overview"],
             key="analysis_type"
         )
         
@@ -134,6 +135,8 @@ def main():
         display_live_market_dashboard()
     elif analysis_type == "⚡ 5-Minute Live Predictions":
         display_five_minute_live_predictions()
+    elif analysis_type == "📊 End of Day Forecast":
+        display_end_of_day_forecast()
     elif analysis_type == "KSE-100 Index":
         display_kse100_analysis(forecast_type, days_ahead, custom_date)
     elif analysis_type == "Individual Companies":
