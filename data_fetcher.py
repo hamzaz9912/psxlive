@@ -367,6 +367,7 @@ class DataFetcher:
         """Validate if price is reasonable for the given symbol"""
         # Price ranges for different companies (approximate)
         price_ranges = {
+            'KSE-100': (10000, 150000),    # KSE-100 index range (current around 13k)
             'OGDC': (80, 200),
             'HBL': (100, 300),
             'MCB': (150, 400),
@@ -816,7 +817,7 @@ class DataFetcher:
         
         # Current accurate PSX market prices (July 2025)
         current_market_prices = {
-            'KSE-100': 132897.26,  # Current PSX KSE-100 index (user provided)
+            'KSE-100': 13389.34,  # Current PSX KSE-100 index (user provided)
             'OGDC': 195.50,        # Oil & Gas Development Company  
             'LUCK': 1150.00,       # Lucky Cement
             'PSO': 245.25,         # Pakistan State Oil
@@ -955,7 +956,7 @@ class DataFetcher:
                                     try:
                                         price = float(match.replace(',', ''))
                                         # Validate KSE-100 range (current market around 130k+)
-                                        if 120000 <= price <= 150000:
+                                        if 10000 <= price <= 150000:
                                             return {
                                                 'price': price,
                                                 'timestamp': datetime.now(),
@@ -1046,7 +1047,7 @@ class DataFetcher:
                                             
                                             # Validate price range based on symbol
                                             if symbol == "KSE-100":
-                                                if 80000 <= price <= 150000:  # Current KSE-100 realistic range
+                                                if 10000 <= price <= 150000:  # Current KSE-100 realistic range
                                                     return {
                                                         'price': price,
                                                         'timestamp': datetime.now(),
