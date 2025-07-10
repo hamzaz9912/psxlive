@@ -119,7 +119,68 @@ class UniversalPredictor:
                         error_messages.append(f"Raw content parsing: {str(e6)}")
                 
                 if df is None:
-                    return {'error': f'Unable to read CSV file. Tried multiple methods:\n' + '\n'.join(error_messages)}
+                    # Final attempt with comprehensive debugging
+                    try:
+                        uploaded_file.seek(0)
+                        raw_bytes = uploaded_file.read()
+                        
+                        # Try multiple encodings
+                        for encoding in ['utf-8', 'latin-1', 'iso-8859-1', 'cp1252', 'ascii']:
+                            try:
+                                content = raw_bytes.decode(encoding)
+                                
+                                # Check if content has any data
+                                if not content.strip():
+                                    continue
+                                
+                                # Try to create a dataframe manually
+                                lines = content.strip().split('\n')
+                                if len(lines) < 2:
+                                    continue
+                                
+                                # Detect delimiter
+                                first_line = lines[0]
+                                delimiters = [',', ';', '\t', '|', ' ']
+                                best_delimiter = ','
+                                max_splits = 0
+                                
+                                for delim in delimiters:
+                                    splits = len(first_line.split(delim))
+                                    if splits > max_splits:
+                                        max_splits = splits
+                                        best_delimiter = delim
+                                
+                                # Create dataframe manually
+                                data = []
+                                headers = lines[0].split(best_delimiter)
+                                
+                                for line in lines[1:]:
+                                    if line.strip():
+                                        row = line.split(best_delimiter)
+                                        if len(row) == len(headers):
+                                            data.append(row)
+                                
+                                if data:
+                                    df = pd.DataFrame(data, columns=headers)
+                                    break
+                                    
+                            except Exception:
+                                continue
+                        
+                        # If df is found, we can continue processing
+                            
+                    except Exception as final_e:
+                        error_messages.append(f"Final manual parsing: {str(final_e)}")
+                
+                if df is None:
+                    return {
+                        'error': f'Unable to read CSV file. Tried multiple methods:\n' + '\n'.join(error_messages),
+                        'debug_info': {
+                            'file_size': uploaded_file.size,
+                            'attempted_methods': len(error_messages),
+                            'methods_tried': error_messages
+                        }
+                    }
                             
             elif file_extension in ['xlsx', 'xls']:
                 # Read Excel file

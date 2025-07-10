@@ -2403,6 +2403,51 @@ def display_universal_file_upload():
                     st.write("**File size:**", uploaded_file.size)
                     st.write("**File type:**", uploaded_file.type)
                     
+                    # Show detailed debug info if available
+                    if 'debug_info' in analysis:
+                        debug = analysis['debug_info']
+                        st.write("**Debug Information:**")
+                        st.write(f"- File size: {debug['file_size']} bytes")
+                        st.write(f"- Attempted methods: {debug['attempted_methods']}")
+                        st.write("**Methods tried:**")
+                        for i, method in enumerate(debug['methods_tried'], 1):
+                            st.write(f"{i}. {method}")
+                    
+                    # Show raw file content analysis
+                    try:
+                        uploaded_file.seek(0)
+                        raw_bytes = uploaded_file.read()
+                        
+                        st.write("**Raw file analysis:**")
+                        st.write(f"- File size: {len(raw_bytes)} bytes")
+                        st.write(f"- First 100 bytes: {raw_bytes[:100]}")
+                        
+                        # Try to decode with different encodings
+                        for encoding in ['utf-8', 'latin-1', 'ascii']:
+                            try:
+                                content = raw_bytes.decode(encoding)
+                                st.write(f"- Decoded with {encoding}: Success")
+                                st.write(f"- Content length: {len(content)} characters")
+                                
+                                lines = content.split('\n')
+                                st.write(f"- Number of lines: {len(lines)}")
+                                
+                                if lines:
+                                    st.write(f"- First line: '{lines[0]}'")
+                                    st.write(f"- First line length: {len(lines[0])}")
+                                    st.write(f"- Contains comma: {',' in lines[0]}")
+                                    st.write(f"- Contains semicolon: {';' in lines[0]}")
+                                    st.write(f"- Contains tab: {chr(9) in lines[0]}")
+                                
+                                # Only show first successful decode
+                                break
+                                
+                            except Exception as decode_error:
+                                st.write(f"- Decode with {encoding}: Failed ({str(decode_error)})")
+                                
+                    except Exception as raw_error:
+                        st.write(f"**Raw file analysis failed:** {str(raw_error)}")
+                    
                     # Try to show first few lines of the file
                     try:
                         uploaded_file.seek(0)
@@ -2440,6 +2485,59 @@ def display_universal_file_upload():
                                 st.write(f"**Excel read error:** {str(excel_e)}")
                     except Exception as e:
                         st.write(f"**Cannot read file content:** {str(e)}")
+                
+                # Offer manual column specification as fallback
+                st.markdown("---")
+                st.subheader("🔧 Manual File Processing")
+                st.markdown("If automatic processing failed, try manual column specification:")
+                
+                # Try to read raw content for manual processing
+                try:
+                    uploaded_file.seek(0)
+                    if uploaded_file.name.endswith('.csv'):
+                        raw_content = uploaded_file.read().decode('utf-8')
+                        lines = raw_content.strip().split('\n')
+                        
+                        if lines:
+                            st.write("**Raw file content (first 5 lines):**")
+                            for i, line in enumerate(lines[:5]):
+                                st.code(f"Line {i+1}: {line}")
+                            
+                            # Manual delimiter selection
+                            delimiter = st.selectbox("Select delimiter:", [',', ';', '\t', '|', ' '], key="manual_delimiter")
+                            
+                            if st.button("🔄 Try Manual Processing", key="manual_process"):
+                                try:
+                                    # Split first line to get headers
+                                    headers = lines[0].split(delimiter)
+                                    data = []
+                                    
+                                    for line in lines[1:]:
+                                        if line.strip():
+                                            row = line.split(delimiter)
+                                            if len(row) == len(headers):
+                                                data.append(row)
+                                    
+                                    if data:
+                                        manual_df = pd.DataFrame(data, columns=headers)
+                                        st.success(f"Manual processing successful! Created dataframe with {len(manual_df)} rows and {len(manual_df.columns)} columns.")
+                                        
+                                        # Show manual processing results
+                                        st.write("**Manually processed data:**")
+                                        st.dataframe(manual_df.head(), use_container_width=True)
+                                        
+                                        # Store manual result for prediction
+                                        st.session_state.manual_df = manual_df
+                                        st.session_state.manual_brand = brand_name
+                                        st.success("Manual processing completed! You can now generate predictions.")
+                                        
+                                    else:
+                                        st.error("No valid data rows found with the selected delimiter.")
+                                        
+                                except Exception as manual_error:
+                                    st.error(f"Manual processing failed: {str(manual_error)}")
+                except Exception as e:
+                    st.error(f"Cannot read file for manual processing: {str(e)}")
                 
                 return
             
@@ -2641,6 +2739,92 @@ def display_universal_file_upload():
             st.info("Please enter a brand/instrument name")
         else:
             st.info("Please upload a file to get started")
+    
+    # Check if manual processing was successful
+    if 'manual_df' in st.session_state and 'manual_brand' in st.session_state:
+        st.markdown("---")
+        st.subheader("🔮 Generate Predictions from Manual Processing")
+        
+        manual_df = st.session_state.manual_df
+        manual_brand = st.session_state.manual_brand
+        
+        st.success(f"Manual processing completed for {manual_brand}! Ready to generate predictions.")
+        
+        # Show column selection for manual processing
+        st.write("**Available columns:**", list(manual_df.columns))
+        
+        col1, col2 = st.columns(2)
+        
+        with col1:
+            price_column = st.selectbox("Select Price Column:", manual_df.columns.tolist(), key="manual_price_col")
+        
+        with col2:
+            date_column = st.selectbox("Select Date Column:", ['None'] + manual_df.columns.tolist(), key="manual_date_col")
+        
+        if st.button("🔮 Generate Predictions from Manual Data", key="manual_predictions"):
+            with st.spinner("Generating predictions from manually processed data..."):
+                try:
+                    # Generate predictions using the manual dataframe
+                    predictions = st.session_state.universal_predictor.generate_predictions(
+                        manual_df, manual_brand, price_column, 
+                        date_column if date_column != 'None' else None
+                    )
+                    
+                    if 'error' in predictions:
+                        st.error(predictions['error'])
+                    else:
+                        # Display prediction results
+                        st.subheader(f"🔮 Prediction Results for {manual_brand}")
+                        
+                        # Current statistics
+                        col1, col2, col3, col4 = st.columns(4)
+                        
+                        with col1:
+                            st.metric("Current Price", f"{predictions['current_price']:.4f}")
+                        
+                        with col2:
+                            volatility = predictions['volatility'] * 100
+                            st.metric("Volatility", f"{volatility:.2f}%")
+                        
+                        with col3:
+                            trend = predictions['trend'] * 100
+                            st.metric("Trend", f"{trend:+.2f}%")
+                        
+                        with col4:
+                            st.metric("Data Points", predictions['data_points'])
+                        
+                        # Show short-term predictions
+                        st.subheader("📅 Short-term Predictions (Next 7 Days)")
+                        short_term = predictions['predictions']['short_term']
+                        df_short = pd.DataFrame(short_term)
+                        st.dataframe(df_short, use_container_width=True)
+                        
+                        # Create prediction chart
+                        fig = go.Figure()
+                        fig.add_trace(go.Scatter(
+                            x=df_short['date'],
+                            y=df_short['predicted_price'],
+                            mode='lines+markers',
+                            name='Predicted Price',
+                            line=dict(color='red', width=3),
+                            marker=dict(size=8)
+                        ))
+                        
+                        fig.update_layout(
+                            title=f"{manual_brand} - Short-term Predictions",
+                            xaxis_title="Date",
+                            yaxis_title="Price",
+                            height=400
+                        )
+                        
+                        st.plotly_chart(fig, use_container_width=True)
+                        
+                        # Clear manual processing data
+                        del st.session_state.manual_df
+                        del st.session_state.manual_brand
+                        
+                except Exception as e:
+                    st.error(f"Error generating predictions: {str(e)}")
 
 def display_news_based_predictions():
     """Display news-based market predictions"""
