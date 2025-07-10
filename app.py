@@ -2816,12 +2816,31 @@ def display_universal_file_upload():
                                           colorbar=dict(title="Confidence"))
                             ))
                             
+                            # Add timezone annotation to chart
+                            timezone_annotation = ""
+                            if 'market_info' in predictions:
+                                market_info = predictions['market_info']
+                                timezone_annotation = f"Market: {market_info['country']} ({market_info['timezone']})<br>Upload: {market_info['upload_time_market']}<br>Status: {market_info['market_status']}"
+                            
                             fig_7days.update_layout(
                                 title=f"{brand_name} - Next 7 Days Predictions",
                                 xaxis_title="Date",
                                 yaxis_title="Price",
                                 height=500,
-                                showlegend=True
+                                showlegend=True,
+                                annotations=[
+                                    dict(
+                                        text=timezone_annotation,
+                                        showarrow=False,
+                                        xref="paper", yref="paper",
+                                        x=1.02, y=0.02,
+                                        xanchor="left", yanchor="bottom",
+                                        font=dict(size=9, color="gray"),
+                                        bgcolor="rgba(255,255,255,0.8)",
+                                        bordercolor="gray",
+                                        borderwidth=1
+                                    )
+                                ] if timezone_annotation else []
                             )
                             
                             st.plotly_chart(fig_7days, use_container_width=True)
@@ -2895,13 +2914,32 @@ def display_universal_file_upload():
                                 marker=dict(color='red', size=12, symbol='triangle-down')
                             ))
                             
+                            # Add timezone annotation to intraday chart
+                            timezone_annotation = ""
+                            if 'market_info' in predictions:
+                                market_info = predictions['market_info']
+                                timezone_annotation = f"Market: {market_info['country']} ({market_info['timezone']})<br>Upload: {market_info['upload_time_market']}<br>Status: {market_info['market_status']}"
+                            
                             fig_intraday.update_layout(
                                 title=f"{brand_name} - Intraday 5-Minute Predictions ({selected_day})",
                                 xaxis_title="Time",
                                 yaxis_title="Price",
                                 height=500,
                                 xaxis=dict(tickangle=45),
-                                showlegend=True
+                                showlegend=True,
+                                annotations=[
+                                    dict(
+                                        text=timezone_annotation,
+                                        showarrow=False,
+                                        xref="paper", yref="paper",
+                                        x=1.02, y=0.02,
+                                        xanchor="left", yanchor="bottom",
+                                        font=dict(size=9, color="gray"),
+                                        bgcolor="rgba(255,255,255,0.8)",
+                                        bordercolor="gray",
+                                        borderwidth=1
+                                    )
+                                ] if timezone_annotation else []
                             )
                             
                             st.plotly_chart(fig_intraday, use_container_width=True)
@@ -2930,11 +2968,30 @@ def display_universal_file_upload():
                                 marker=dict(size=8)
                             ))
                             
+                            # Add timezone annotation to medium-term chart
+                            timezone_annotation = ""
+                            if 'market_info' in predictions:
+                                market_info = predictions['market_info']
+                                timezone_annotation = f"Market: {market_info['country']} ({market_info['timezone']})<br>Upload: {market_info['upload_time_market']}"
+                            
                             fig_medium.update_layout(
                                 title=f"{brand_name} - Medium-term Predictions (4 Weeks)",
                                 xaxis_title="Date",
                                 yaxis_title="Price",
-                                height=400
+                                height=400,
+                                annotations=[
+                                    dict(
+                                        text=timezone_annotation,
+                                        showarrow=False,
+                                        xref="paper", yref="paper",
+                                        x=1.02, y=0.02,
+                                        xanchor="left", yanchor="bottom",
+                                        font=dict(size=9, color="gray"),
+                                        bgcolor="rgba(255,255,255,0.8)",
+                                        bordercolor="gray",
+                                        borderwidth=1
+                                    )
+                                ] if timezone_annotation else []
                             )
                             
                             st.plotly_chart(fig_medium, use_container_width=True)
@@ -2957,11 +3014,30 @@ def display_universal_file_upload():
                                 marker=dict(size=8)
                             ))
                             
+                            # Add timezone annotation to long-term chart
+                            timezone_annotation = ""
+                            if 'market_info' in predictions:
+                                market_info = predictions['market_info']
+                                timezone_annotation = f"Market: {market_info['country']} ({market_info['timezone']})<br>Upload: {market_info['upload_time_market']}"
+                            
                             fig_long.update_layout(
                                 title=f"{brand_name} - Long-term Predictions (3 Months)",
                                 xaxis_title="Date",
                                 yaxis_title="Price",
-                                height=400
+                                height=400,
+                                annotations=[
+                                    dict(
+                                        text=timezone_annotation,
+                                        showarrow=False,
+                                        xref="paper", yref="paper",
+                                        x=1.02, y=0.02,
+                                        xanchor="left", yanchor="bottom",
+                                        font=dict(size=9, color="gray"),
+                                        bgcolor="rgba(255,255,255,0.8)",
+                                        bordercolor="gray",
+                                        borderwidth=1
+                                    )
+                                ] if timezone_annotation else []
                             )
                             
                             st.plotly_chart(fig_long, use_container_width=True)
@@ -3054,6 +3130,39 @@ def display_universal_file_upload():
                         with col4:
                             st.metric("Data Points", predictions['data_points'])
                         
+                        # Market and timezone information
+                        if 'market_info' in predictions:
+                            st.markdown("---")
+                            st.subheader("🌍 Market & Timezone Information")
+                            
+                            market_info = predictions['market_info']
+                            
+                            col1, col2, col3 = st.columns(3)
+                            
+                            with col1:
+                                st.info(f"""
+                                **Market Details**
+                                - **Country**: {market_info['country']}
+                                - **Currency**: {market_info['currency']}
+                                - **Trading Hours**: {market_info['trading_session']}
+                                """)
+                            
+                            with col2:
+                                st.success(f"""
+                                **Upload Time**
+                                - **UTC**: {market_info['upload_time_utc']}
+                                - **Market Time**: {market_info['upload_time_market']}
+                                """)
+                            
+                            with col3:
+                                market_status = market_info['market_status']
+                                if 'Open' in market_status:
+                                    st.success(f"**Market Status**: {market_status}")
+                                else:
+                                    st.warning(f"**Market Status**: {market_status}")
+                                
+                                st.write(f"**Timezone**: {market_info['timezone']}")
+                        
                         # Show short-term predictions
                         st.subheader("📅 Short-term Predictions (Next 7 Days)")
                         short_term = predictions['predictions']['short_term']
@@ -3071,11 +3180,30 @@ def display_universal_file_upload():
                             marker=dict(size=8)
                         ))
                         
+                        # Add timezone annotation to manual prediction chart
+                        timezone_annotation = ""
+                        if 'market_info' in predictions:
+                            market_info = predictions['market_info']
+                            timezone_annotation = f"Market: {market_info['country']} ({market_info['timezone']})<br>Upload: {market_info['upload_time_market']}<br>Status: {market_info['market_status']}"
+                        
                         fig.update_layout(
                             title=f"{manual_brand} - Short-term Predictions",
                             xaxis_title="Date",
                             yaxis_title="Price",
-                            height=400
+                            height=400,
+                            annotations=[
+                                dict(
+                                    text=timezone_annotation,
+                                    showarrow=False,
+                                    xref="paper", yref="paper",
+                                    x=1.02, y=0.02,
+                                    xanchor="left", yanchor="bottom",
+                                    font=dict(size=9, color="gray"),
+                                    bgcolor="rgba(255,255,255,0.8)",
+                                    bordercolor="gray",
+                                    borderwidth=1
+                                )
+                            ] if timezone_annotation else []
                         )
                         
                         st.plotly_chart(fig, use_container_width=True)

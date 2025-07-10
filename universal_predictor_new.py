@@ -11,6 +11,7 @@ import plotly.graph_objects as go
 from plotly.subplots import make_subplots
 import io
 import re
+import pytz
 from simple_file_reader import read_any_file, analyze_dataframe
 
 class UniversalPredictor:
@@ -43,12 +44,90 @@ class UniversalPredictor:
         except Exception as e:
             return {'error': f'Error processing file: {str(e)}'}
     
+    def _detect_market_timezone(self, brand_name):
+        """Detect market and timezone based on brand name"""
+        brand_lower = brand_name.lower()
+        
+        # Define market mappings
+        markets = {
+            'PSX': {'country': 'Pakistan', 'timezone': 'Asia/Karachi', 'currency': 'PKR', 'session': '09:30-15:30'},
+            'NYSE': {'country': 'United States', 'timezone': 'America/New_York', 'currency': 'USD', 'session': '09:30-16:00'},
+            'NASDAQ': {'country': 'United States', 'timezone': 'America/New_York', 'currency': 'USD', 'session': '09:30-16:00'},
+            'LSE': {'country': 'United Kingdom', 'timezone': 'Europe/London', 'currency': 'GBP', 'session': '08:00-16:30'},
+            'NSE': {'country': 'India', 'timezone': 'Asia/Kolkata', 'currency': 'INR', 'session': '09:15-15:30'},
+            'TSE': {'country': 'Japan', 'timezone': 'Asia/Tokyo', 'currency': 'JPY', 'session': '09:00-15:00'},
+            'FOREX': {'country': 'Global', 'timezone': 'UTC', 'currency': 'USD', 'session': '24/7'},
+            'CRYPTO': {'country': 'Global', 'timezone': 'UTC', 'currency': 'USD', 'session': '24/7'},
+            'GOLD': {'country': 'Global', 'timezone': 'UTC', 'currency': 'USD', 'session': '24/7'}
+        }
+        
+        # Detect based on brand patterns
+        if any(psx in brand_lower for psx in ['kse', 'psx', 'ogdc', 'ppl', 'pso', 'mari', 'engro', 'luck', 'ubl', 'mcb', 'hbl']):
+            return markets['PSX']
+        elif any(gold in brand_lower for gold in ['xauusd', 'gold', 'xau', 'gld']):
+            return markets['GOLD']
+        elif any(forex in brand_lower for forex in ['usd', 'eur', 'gbp', 'jpy', 'cad', 'aud', 'chf', 'forex']):
+            return markets['FOREX']
+        elif any(crypto in brand_lower for crypto in ['btc', 'eth', 'crypto', 'bitcoin', 'ethereum']):
+            return markets['CRYPTO']
+        elif any(us in brand_lower for us in ['nasdaq', 'nyse', 'sp500', 'dow']):
+            return markets['NYSE']
+        elif any(uk in brand_lower for uk in ['ftse', 'lse', 'london']):
+            return markets['LSE']
+        elif any(india in brand_lower for india in ['nse', 'sensex', 'nifty']):
+            return markets['NSE']
+        elif any(japan in brand_lower for japan in ['nikkei', 'tse', 'tokyo']):
+            return markets['TSE']
+        else:
+            # Default to PSX for unknown brands
+            return markets['PSX']
+    
+    def _get_market_status(self, market_time, market_info):
+        """Determine if market is open based on time and trading session"""
+        try:
+            if market_info['session'] == '24/7':
+                return 'Open (24/7 Trading)'
+            
+            # Parse trading session
+            session_parts = market_info['session'].split('-')
+            if len(session_parts) != 2:
+                return 'Unknown'
+            
+            start_time_str, end_time_str = session_parts
+            start_hour, start_min = map(int, start_time_str.split(':'))
+            end_hour, end_min = map(int, end_time_str.split(':'))
+            
+            current_time = market_time.time()
+            start_time = market_time.replace(hour=start_hour, minute=start_min).time()
+            end_time = market_time.replace(hour=end_hour, minute=end_min).time()
+            
+            # Check if current time is within trading session
+            if start_time <= current_time <= end_time:
+                # Also check if it's a weekday (Mon-Fri)
+                if market_time.weekday() < 5:  # 0-4 are Mon-Fri
+                    return 'Open'
+                else:
+                    return 'Closed (Weekend)'
+            else:
+                return 'Closed (After Hours)'
+                
+        except Exception as e:
+            return f'Unknown (Error: {str(e)})'
+    
     def generate_predictions(self, df, brand_name, price_column, date_column=None):
         """Generate predictions based on uploaded data"""
         try:
             # Validate price column
             if price_column not in df.columns:
                 return {'error': f'Price column "{price_column}" not found in data'}
+            
+            # Detect market and timezone
+            market_info = self._detect_market_timezone(brand_name)
+            
+            # Get timezone information
+            market_tz = pytz.timezone(market_info['timezone'])
+            utc_now = datetime.now(pytz.UTC)
+            market_time = utc_now.astimezone(market_tz)
             
             # Convert price column to numeric
             try:
@@ -81,6 +160,15 @@ class UniversalPredictor:
                 'volatility': volatility,
                 'trend': trend,
                 'data_points': len(price_data),
+                'market_info': {
+                    'country': market_info['country'],
+                    'timezone': market_info['timezone'],
+                    'currency': market_info['currency'],
+                    'trading_session': market_info['session'],
+                    'upload_time_utc': utc_now.strftime('%Y-%m-%d %H:%M:%S UTC'),
+                    'upload_time_market': market_time.strftime('%Y-%m-%d %H:%M:%S %Z'),
+                    'market_status': self._get_market_status(market_time, market_info)
+                },
                 'historical_data': {
                     'prices': price_data.tolist(),
                     'dates': date_data.dt.strftime('%Y-%m-%d').tolist() if date_data is not None else []
@@ -284,7 +372,7 @@ class UniversalPredictor:
             return {'error': f'Technical analysis failed: {str(e)}'}
     
     def create_prediction_chart(self, df, predictions, price_column, date_column=None):
-        """Create interactive prediction chart"""
+        """Create interactive prediction chart with timezone information"""
         try:
             fig = go.Figure()
             
@@ -316,11 +404,33 @@ class UniversalPredictor:
                 marker=dict(size=6)
             ))
             
+            # Get timezone information for chart annotation
+            timezone_info = ""
+            if 'market_info' in predictions:
+                market_info = predictions['market_info']
+                timezone_info = f"Market: {market_info['country']} ({market_info['timezone']})<br>Upload Time: {market_info['upload_time_market']}<br>Status: {market_info['market_status']}"
+            
+            # Chart title with brand name
+            brand_name = predictions.get('brand_name', 'Unknown')
+            
             fig.update_layout(
-                title=f'Price Predictions for {predictions.get("brand", "Unknown")}',
+                title=f'Price Predictions for {brand_name}',
                 xaxis_title='Date',
                 yaxis_title='Price',
-                height=500
+                height=500,
+                annotations=[
+                    dict(
+                        text=timezone_info,
+                        showarrow=False,
+                        xref="paper", yref="paper",
+                        x=1.02, y=0.02,
+                        xanchor="left", yanchor="bottom",
+                        font=dict(size=10, color="gray"),
+                        bgcolor="rgba(255,255,255,0.8)",
+                        bordercolor="gray",
+                        borderwidth=1
+                    )
+                ] if timezone_info else []
             )
             
             return fig
