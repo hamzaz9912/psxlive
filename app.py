@@ -2360,12 +2360,36 @@ def display_universal_file_upload():
     
     if uploaded_file is not None and brand_name:
         try:
+            # Show file details for debugging
+            st.info(f"**File Details:** {uploaded_file.name} ({uploaded_file.size} bytes, type: {uploaded_file.type})")
+            
             # Process uploaded file
             with st.spinner("Processing uploaded file..."):
                 analysis = st.session_state.universal_predictor.process_uploaded_file(uploaded_file, brand_name)
             
             if 'error' in analysis:
-                st.error(analysis['error'])
+                st.error(f"**Processing Error:** {analysis['error']}")
+                
+                # Show debug information
+                with st.expander("🔍 Debug Information"):
+                    st.write("**File name:**", uploaded_file.name)
+                    st.write("**File size:**", uploaded_file.size)
+                    st.write("**File type:**", uploaded_file.type)
+                    
+                    # Try to show first few lines of the file
+                    try:
+                        uploaded_file.seek(0)
+                        if uploaded_file.name.endswith('.csv'):
+                            content = uploaded_file.read().decode('utf-8')
+                            lines = content.split('\n')[:5]
+                            st.write("**First 5 lines of file:**")
+                            for i, line in enumerate(lines):
+                                st.code(f"Line {i+1}: {line}")
+                        else:
+                            st.write("**File content:** (Excel file - cannot display raw content)")
+                    except Exception as e:
+                        st.write(f"**Cannot read file content:** {str(e)}")
+                
                 return
             
             # Display file analysis
@@ -2380,19 +2404,48 @@ def display_universal_file_upload():
                 st.metric("Columns", analysis['total_columns'])
             
             with col3:
-                if analysis['data_range']:
+                if analysis['data_range'] and 'error' not in analysis['data_range']:
                     st.metric("Date Range", f"{analysis['data_range']['total_days']} days")
                 else:
                     st.metric("Date Range", "N/A")
             
             with col4:
-                if 'price_stats' in analysis:
+                if 'price_stats' in analysis and 'error' not in analysis['price_stats']:
                     current_price = analysis['price_stats']['current']
                     st.metric("Current Price", f"{current_price:.4f}")
+                else:
+                    st.metric("Current Price", "N/A")
+            
+            # Show detailed column information
+            st.subheader("📋 Column Information")
+            col_info = []
+            for col in analysis['columns']:
+                col_type = str(analysis['data_types'].get(col, 'unknown'))
+                col_info.append({'Column': str(col), 'Type': col_type})
+            
+            if col_info:
+                try:
+                    col_df = pd.DataFrame(col_info)
+                    # Ensure all columns are string type to avoid Arrow conversion issues
+                    col_df = col_df.astype(str)
+                    st.dataframe(col_df, use_container_width=True)
+                except Exception as e:
+                    st.warning(f"Column info display error: {str(e)}")
+                    st.write("**Available columns:**", ", ".join(analysis['columns']))
+            else:
+                st.warning("No column information available.")
             
             # Show data preview
             st.subheader("📋 Data Preview")
-            st.dataframe(pd.DataFrame(analysis['sample_data']))
+            try:
+                if analysis['sample_data']:
+                    preview_df = pd.DataFrame(analysis['sample_data'])
+                    st.dataframe(preview_df, use_container_width=True)
+                else:
+                    st.warning("No sample data available to preview.")
+            except Exception as e:
+                st.error(f"Error displaying preview: {str(e)}")
+                st.write("Raw sample data:", analysis['sample_data'])
             
             # Column mapping
             st.subheader("🎯 Column Mapping")

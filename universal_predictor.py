@@ -31,14 +31,54 @@ class UniversalPredictor:
         try:
             file_extension = uploaded_file.name.split('.')[-1].lower()
             
+            # Reset file pointer to beginning
+            uploaded_file.seek(0)
+            
             if file_extension == 'csv':
-                # Read CSV file
-                df = pd.read_csv(uploaded_file)
+                # Try different CSV reading approaches
+                try:
+                    # First try with default settings
+                    df = pd.read_csv(uploaded_file)
+                except Exception as e1:
+                    # Reset file pointer and try with different delimiter
+                    uploaded_file.seek(0)
+                    try:
+                        df = pd.read_csv(uploaded_file, delimiter=';')
+                    except Exception as e2:
+                        # Reset file pointer and try with different encoding
+                        uploaded_file.seek(0)
+                        try:
+                            df = pd.read_csv(uploaded_file, encoding='latin-1')
+                        except Exception as e3:
+                            # Reset file pointer and try with tab delimiter
+                            uploaded_file.seek(0)
+                            try:
+                                df = pd.read_csv(uploaded_file, delimiter='\t')
+                            except Exception as e4:
+                                return {'error': f'Unable to read CSV file. Tried multiple formats. Last error: {str(e4)}'}
+                            
             elif file_extension in ['xlsx', 'xls']:
                 # Read Excel file
-                df = pd.read_excel(uploaded_file)
+                try:
+                    df = pd.read_excel(uploaded_file)
+                except Exception as e:
+                    return {'error': f'Unable to read Excel file: {str(e)}'}
             else:
-                return {'error': f'Unsupported file format: {file_extension}'}
+                return {'error': f'Unsupported file format: {file_extension}. Please upload CSV or Excel files.'}
+            
+            # Check if dataframe is empty
+            if df.empty:
+                return {'error': 'The uploaded file appears to be empty or has no readable data.'}
+            
+            # Check if dataframe has any columns
+            if len(df.columns) == 0:
+                return {'error': 'The uploaded file has no columns. Please check the file format.'}
+            
+            # Remove completely empty rows and columns
+            df = df.dropna(how='all').dropna(axis=1, how='all')
+            
+            if df.empty:
+                return {'error': 'After removing empty rows/columns, no data remains. Please check your file.'}
             
             # Analyze the data structure
             analysis = self._analyze_data_structure(df, brand_name)
@@ -46,54 +86,104 @@ class UniversalPredictor:
             return analysis
             
         except Exception as e:
-            return {'error': f'Error processing file: {str(e)}'}
+            return {'error': f'Error processing file: {str(e)}. Please ensure the file is not corrupted and contains valid data.'}
     
     def _analyze_data_structure(self, df, brand_name):
         """Analyze the structure of uploaded data"""
         try:
+            # Clean column names - remove extra spaces and special characters
+            df.columns = df.columns.str.strip()
+            
             # Basic info
             analysis = {
                 'brand_name': brand_name,
                 'total_rows': len(df),
                 'total_columns': len(df.columns),
                 'columns': list(df.columns),
-                'data_types': df.dtypes.to_dict(),
+                'data_types': {str(k): str(v) for k, v in df.dtypes.to_dict().items()},
                 'has_price_data': False,
                 'has_date_data': False,
                 'price_column': None,
                 'date_column': None,
                 'data_range': None,
-                'sample_data': df.head(3).to_dict('records')
+                'sample_data': []
             }
             
-            # Identify price column
+            # Get sample data safely
+            try:
+                sample_df = df.head(3)
+                # Convert to safe format for display
+                analysis['sample_data'] = []
+                for idx, row in sample_df.iterrows():
+                    row_dict = {}
+                    for col in df.columns:
+                        try:
+                            val = row[col]
+                            if pd.isna(val):
+                                row_dict[col] = "N/A"
+                            else:
+                                row_dict[col] = str(val)
+                        except:
+                            row_dict[col] = "Error"
+                    analysis['sample_data'].append(row_dict)
+            except Exception as e:
+                analysis['sample_data'] = [{'Error': f'Cannot display sample data: {str(e)}'}]
+            
+            # Identify price column with more flexible matching
             for col in df.columns:
-                if any(price_col.lower() in col.lower() for price_col in self.common_price_columns):
+                col_lower = str(col).lower()
+                if any(price_col.lower() in col_lower for price_col in self.common_price_columns):
                     analysis['price_column'] = col
                     analysis['has_price_data'] = True
                     break
             
-            # Identify date column
+            # If no price column found, try to find numeric columns
+            if not analysis['price_column']:
+                numeric_cols = df.select_dtypes(include=[np.number]).columns
+                if len(numeric_cols) > 0:
+                    # Use the first numeric column as price column
+                    analysis['price_column'] = numeric_cols[0]
+                    analysis['has_price_data'] = True
+            
+            # Identify date column with more flexible matching
             for col in df.columns:
-                if any(date_col.lower() in col.lower() for date_col in self.common_date_columns):
+                col_lower = str(col).lower()
+                if any(date_col.lower() in col_lower for date_col in self.common_date_columns):
                     analysis['date_column'] = col
                     analysis['has_date_data'] = True
                     break
             
+            # If no date column found, try to find datetime columns
+            if not analysis['date_column']:
+                for col in df.columns:
+                    try:
+                        sample_vals = df[col].dropna().head(5)
+                        if len(sample_vals) > 0:
+                            # Try to parse as datetime
+                            pd.to_datetime(sample_vals, errors='raise')
+                            analysis['date_column'] = col
+                            analysis['has_date_data'] = True
+                            break
+                    except:
+                        continue
+            
             # If price column found, get price statistics
             if analysis['price_column']:
-                price_data = pd.to_numeric(df[analysis['price_column']], errors='coerce')
-                price_data = price_data.dropna()
-                
-                if len(price_data) > 0:
-                    analysis['price_stats'] = {
-                        'min': float(price_data.min()),
-                        'max': float(price_data.max()),
-                        'mean': float(price_data.mean()),
-                        'current': float(price_data.iloc[-1]),
-                        'previous': float(price_data.iloc[-2]) if len(price_data) > 1 else None,
-                        'change': float(price_data.iloc[-1] - price_data.iloc[-2]) if len(price_data) > 1 else 0
-                    }
+                try:
+                    price_data = pd.to_numeric(df[analysis['price_column']], errors='coerce')
+                    price_data = price_data.dropna()
+                    
+                    if len(price_data) > 0:
+                        analysis['price_stats'] = {
+                            'min': float(price_data.min()),
+                            'max': float(price_data.max()),
+                            'mean': float(price_data.mean()),
+                            'current': float(price_data.iloc[-1]),
+                            'previous': float(price_data.iloc[-2]) if len(price_data) > 1 else None,
+                            'change': float(price_data.iloc[-1] - price_data.iloc[-2]) if len(price_data) > 1 else 0
+                        }
+                except Exception as e:
+                    analysis['price_stats'] = {'error': f'Cannot analyze price data: {str(e)}'}
             
             # If date column found, get date range
             if analysis['date_column']:
@@ -107,8 +197,8 @@ class UniversalPredictor:
                             'end': date_data.max().strftime('%Y-%m-%d'),
                             'total_days': (date_data.max() - date_data.min()).days
                         }
-                except Exception:
-                    pass
+                except Exception as e:
+                    analysis['data_range'] = {'error': f'Cannot analyze date data: {str(e)}'}
             
             return analysis
             
