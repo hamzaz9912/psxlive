@@ -16,6 +16,7 @@ from database import get_database_manager
 from enhanced_features import display_enhanced_file_upload
 from news_predictor import get_news_predictor
 from universal_predictor import get_universal_predictor
+from file_debug import analyze_uploaded_file, create_manual_dataframe
 
 # Page configuration
 st.set_page_config(
@@ -2397,147 +2398,166 @@ def display_universal_file_upload():
             if 'error' in analysis:
                 st.error(f"**Processing Error:** {analysis['error']}")
                 
-                # Show debug information
-                with st.expander("🔍 Debug Information"):
-                    st.write("**File name:**", uploaded_file.name)
-                    st.write("**File size:**", uploaded_file.size)
-                    st.write("**File type:**", uploaded_file.type)
+                # Run comprehensive file analysis
+                with st.spinner("Running comprehensive file analysis..."):
+                    file_analysis = analyze_uploaded_file(uploaded_file)
+                
+                # Show comprehensive debug information
+                with st.expander("🔍 Comprehensive File Analysis", expanded=True):
+                    st.write("### Basic File Information")
+                    st.write(f"**File name:** {file_analysis.get('file_name', 'Unknown')}")
+                    st.write(f"**File size:** {file_analysis.get('file_size', 0)} bytes")
+                    st.write(f"**File type:** {file_analysis.get('file_type', 'Unknown')}")
+                    st.write(f"**Raw size:** {file_analysis.get('raw_size', 0)} bytes")
                     
-                    # Show detailed debug info if available
-                    if 'debug_info' in analysis:
-                        debug = analysis['debug_info']
-                        st.write("**Debug Information:**")
-                        st.write(f"- File size: {debug['file_size']} bytes")
-                        st.write(f"- Attempted methods: {debug['attempted_methods']}")
-                        st.write("**Methods tried:**")
-                        for i, method in enumerate(debug['methods_tried'], 1):
-                            st.write(f"{i}. {method}")
+                    # Encoding detection
+                    if 'detected_encoding' in file_analysis:
+                        encoding_info = file_analysis['detected_encoding']
+                        st.write("### Encoding Detection")
+                        st.write(f"**Detected encoding:** {encoding_info.get('encoding', 'Unknown')}")
+                        st.write(f"**Confidence:** {encoding_info.get('confidence', 0):.2%}")
                     
-                    # Show raw file content analysis
-                    try:
-                        uploaded_file.seek(0)
-                        raw_bytes = uploaded_file.read()
+                    # Content analysis
+                    if file_analysis.get('decode_success', False):
+                        st.write("### Content Structure")
+                        st.write(f"**Content length:** {file_analysis.get('content_length', 0)} characters")
+                        st.write(f"**Total lines:** {file_analysis.get('total_lines', 0)}")
+                        st.write(f"**Non-empty lines:** {file_analysis.get('non_empty_lines', 0)}")
                         
-                        st.write("**Raw file analysis:**")
-                        st.write(f"- File size: {len(raw_bytes)} bytes")
-                        st.write(f"- First 100 bytes: {raw_bytes[:100]}")
+                        # First line analysis
+                        if 'first_line' in file_analysis:
+                            st.write("### First Line Analysis")
+                            st.code(f"First line: {file_analysis['first_line']}")
+                            st.write(f"**Length:** {file_analysis.get('first_line_length', 0)} characters")
+                            
+                            # Delimiter analysis
+                            if 'delimiter_counts' in file_analysis:
+                                delim_counts = file_analysis['delimiter_counts']
+                                st.write("**Delimiter counts:**")
+                                for delim, count in delim_counts.items():
+                                    st.write(f"- {delim}: {count}")
+                                
+                                st.write(f"**Suggested delimiter:** {file_analysis.get('suggested_delimiter', 'unknown')}")
+                                st.write(f"**Potential columns:** {file_analysis.get('potential_columns', 0)}")
+                                
+                                if 'potential_headers' in file_analysis:
+                                    st.write("**Potential headers:**")
+                                    for i, header in enumerate(file_analysis['potential_headers']):
+                                        st.write(f"{i+1}. {header}")
+                                
+                                st.write(f"**Consistent data rows:** {file_analysis.get('consistent_data_rows', 0)}")
+                                st.write(f"**Data consistency:** {'✓' if file_analysis.get('data_consistency', False) else '✗'}")
                         
-                        # Try to decode with different encodings
-                        for encoding in ['utf-8', 'latin-1', 'ascii']:
-                            try:
-                                content = raw_bytes.decode(encoding)
-                                st.write(f"- Decoded with {encoding}: Success")
-                                st.write(f"- Content length: {len(content)} characters")
-                                
-                                lines = content.split('\n')
-                                st.write(f"- Number of lines: {len(lines)}")
-                                
-                                if lines:
-                                    st.write(f"- First line: '{lines[0]}'")
-                                    st.write(f"- First line length: {len(lines[0])}")
-                                    st.write(f"- Contains comma: {',' in lines[0]}")
-                                    st.write(f"- Contains semicolon: {';' in lines[0]}")
-                                    st.write(f"- Contains tab: {chr(9) in lines[0]}")
-                                
-                                # Only show first successful decode
-                                break
-                                
-                            except Exception as decode_error:
-                                st.write(f"- Decode with {encoding}: Failed ({str(decode_error)})")
-                                
-                    except Exception as raw_error:
-                        st.write(f"**Raw file analysis failed:** {str(raw_error)}")
-                    
-                    # Try to show first few lines of the file
-                    try:
-                        uploaded_file.seek(0)
-                        if uploaded_file.name.endswith('.csv'):
-                            content = uploaded_file.read().decode('utf-8')
-                            lines = content.split('\n')[:10]
-                            st.write("**First 10 lines of file:**")
-                            for i, line in enumerate(lines):
+                        # Show first few lines
+                        if 'first_5_lines' in file_analysis:
+                            st.write("### First 5 Lines")
+                            for i, line in enumerate(file_analysis['first_5_lines']):
                                 st.code(f"Line {i+1}: {repr(line)}")
-                            
-                            # Show file statistics
-                            st.write(f"**Total lines:** {len(content.split(chr(10)))}")
-                            st.write(f"**Total characters:** {len(content)}")
-                            st.write(f"**Has comma:** {',' in content}")
-                            st.write(f"**Has semicolon:** {';' in content}")
-                            st.write(f"**Has tab:** {chr(9) in content}")
-                            
-                            # Try to detect delimiter
-                            first_line = lines[0] if lines else ""
-                            comma_count = first_line.count(',')
-                            semicolon_count = first_line.count(';')
-                            tab_count = first_line.count('\t')
-                            st.write(f"**First line analysis:** Commas: {comma_count}, Semicolons: {semicolon_count}, Tabs: {tab_count}")
-                            
-                        else:
-                            st.write("**File content:** (Excel file - cannot display raw content)")
-                            # Try to read Excel for debugging
-                            try:
-                                uploaded_file.seek(0)
-                                test_df = pd.read_excel(uploaded_file)
-                                st.write(f"**Excel file info:** {test_df.shape[0]} rows, {test_df.shape[1]} columns")
-                                if not test_df.empty:
-                                    st.write("**Excel columns:**", list(test_df.columns))
-                            except Exception as excel_e:
-                                st.write(f"**Excel read error:** {str(excel_e)}")
-                    except Exception as e:
-                        st.write(f"**Cannot read file content:** {str(e)}")
-                
-                # Offer manual column specification as fallback
-                st.markdown("---")
-                st.subheader("🔧 Manual File Processing")
-                st.markdown("If automatic processing failed, try manual column specification:")
-                
-                # Try to read raw content for manual processing
-                try:
-                    uploaded_file.seek(0)
-                    if uploaded_file.name.endswith('.csv'):
-                        raw_content = uploaded_file.read().decode('utf-8')
-                        lines = raw_content.strip().split('\n')
+                    
+                    else:
+                        st.error(f"**Decode failed:** {file_analysis.get('decode_error', 'Unknown error')}")
+                    
+                    # Pandas attempts
+                    if 'pandas_attempts' in file_analysis:
+                        st.write("### Pandas Reading Attempts")
+                        successful_count = file_analysis.get('successful_pandas_methods', 0)
+                        st.write(f"**Successful methods:** {successful_count} out of {len(file_analysis['pandas_attempts'])}")
                         
-                        if lines:
-                            st.write("**Raw file content (first 5 lines):**")
-                            for i, line in enumerate(lines[:5]):
-                                st.code(f"Line {i+1}: {line}")
+                        for attempt in file_analysis['pandas_attempts']:
+                            if attempt['success']:
+                                st.success(f"✓ {attempt['method']}: {attempt['rows']} rows, {attempt['columns']} columns")
+                                if 'column_names' in attempt:
+                                    st.write(f"   Columns: {attempt['column_names']}")
+                            else:
+                                st.error(f"✗ {attempt['method']}: {attempt['error']}")
+                        
+                        # Show recommended method
+                        if 'recommended_method' in file_analysis:
+                            rec = file_analysis['recommended_method']
+                            st.info(f"**Recommended method:** {rec['method']} ({rec['rows']} rows, {rec['columns']} columns)")
+                
+                # Enhanced manual processing
+                st.markdown("---")
+                st.subheader("🔧 Enhanced Manual Processing")
+                
+                if file_analysis.get('decode_success', False) and file_analysis.get('data_consistency', False):
+                    st.success("File appears to have consistent structure. Try automatic processing:")
+                    
+                    # Automatic processing with detected parameters
+                    if st.button("🚀 Try Automatic Processing with Detected Parameters", key="auto_process"):
+                        try:
+                            uploaded_file.seek(0)
+                            if file_analysis.get('suggested_delimiter') == 'comma':
+                                delimiter = ','
+                            elif file_analysis.get('suggested_delimiter') == 'semicolon':
+                                delimiter = ';'
+                            elif file_analysis.get('suggested_delimiter') == 'tab':
+                                delimiter = '\t'
+                            elif file_analysis.get('suggested_delimiter') == 'pipe':
+                                delimiter = '|'
+                            else:
+                                delimiter = ','
                             
-                            # Manual delimiter selection
-                            delimiter = st.selectbox("Select delimiter:", [',', ';', '\t', '|', ' '], key="manual_delimiter")
+                            encoding = file_analysis.get('detected_encoding', {}).get('encoding', 'utf-8')
                             
-                            if st.button("🔄 Try Manual Processing", key="manual_process"):
-                                try:
-                                    # Split first line to get headers
-                                    headers = lines[0].split(delimiter)
-                                    data = []
-                                    
-                                    for line in lines[1:]:
-                                        if line.strip():
-                                            row = line.split(delimiter)
-                                            if len(row) == len(headers):
-                                                data.append(row)
-                                    
-                                    if data:
-                                        manual_df = pd.DataFrame(data, columns=headers)
-                                        st.success(f"Manual processing successful! Created dataframe with {len(manual_df)} rows and {len(manual_df.columns)} columns.")
-                                        
-                                        # Show manual processing results
-                                        st.write("**Manually processed data:**")
-                                        st.dataframe(manual_df.head(), use_container_width=True)
-                                        
-                                        # Store manual result for prediction
-                                        st.session_state.manual_df = manual_df
-                                        st.session_state.manual_brand = brand_name
-                                        st.success("Manual processing completed! You can now generate predictions.")
-                                        
-                                    else:
-                                        st.error("No valid data rows found with the selected delimiter.")
-                                        
-                                except Exception as manual_error:
-                                    st.error(f"Manual processing failed: {str(manual_error)}")
-                except Exception as e:
-                    st.error(f"Cannot read file for manual processing: {str(e)}")
+                            # Try to create dataframe with detected parameters
+                            df = pd.read_csv(uploaded_file, delimiter=delimiter, encoding=encoding)
+                            
+                            if not df.empty:
+                                st.success(f"Automatic processing successful! Created dataframe with {len(df)} rows and {len(df.columns)} columns.")
+                                st.dataframe(df.head(), use_container_width=True)
+                                
+                                # Store result for prediction
+                                st.session_state.manual_df = df
+                                st.session_state.manual_brand = brand_name
+                                st.success("Processing completed! You can now generate predictions.")
+                            else:
+                                st.error("Dataframe is empty")
+                                
+                        except Exception as auto_error:
+                            st.error(f"Automatic processing failed: {str(auto_error)}")
+                
+                # Manual parameter selection
+                st.write("### Manual Parameter Selection")
+                
+                col1, col2 = st.columns(2)
+                
+                with col1:
+                    delimiter_options = {
+                        'Comma (,)': ',',
+                        'Semicolon (;)': ';',
+                        'Tab': '\t',
+                        'Pipe (|)': '|',
+                        'Space': ' '
+                    }
+                    selected_delimiter = st.selectbox("Select delimiter:", list(delimiter_options.keys()), key="manual_delimiter_select")
+                    delimiter = delimiter_options[selected_delimiter]
+                
+                with col2:
+                    encoding_options = ['utf-8', 'latin-1', 'iso-8859-1', 'cp1252', 'ascii']
+                    selected_encoding = st.selectbox("Select encoding:", encoding_options, key="manual_encoding_select")
+                
+                if st.button("🔄 Try Manual Processing", key="manual_process"):
+                    try:
+                        uploaded_file.seek(0)
+                        raw_content = uploaded_file.read().decode(selected_encoding)
+                        
+                        manual_df, status = create_manual_dataframe(raw_content, delimiter, 0, selected_encoding)
+                        
+                        if manual_df is not None:
+                            st.success(f"Manual processing successful! {status}")
+                            st.write(f"Created dataframe with {len(manual_df)} rows and {len(manual_df.columns)} columns.")
+                            st.dataframe(manual_df.head(), use_container_width=True)
+                            
+                            # Store result for prediction
+                            st.session_state.manual_df = manual_df
+                            st.session_state.manual_brand = brand_name
+                            st.success("Manual processing completed! You can now generate predictions.")
+                        else:
+                            st.error(f"Manual processing failed: {status}")
+                            
+                    except Exception as manual_error:
+                        st.error(f"Manual processing failed: {str(manual_error)}")
                 
                 return
             

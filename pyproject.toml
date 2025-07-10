@@ -22,4 +22,5 @@ dependencies = [
     "yfinance>=0.2.64",
     "newspaper3k>=0.2.8",
     "pytz>=2025.2",
+    "chardet>=5.2.0",
 ]
