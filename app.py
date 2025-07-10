@@ -14,6 +14,8 @@ from visualization import ChartVisualizer
 from utils import export_to_csv, format_currency, format_market_status
 from database import get_database_manager
 from enhanced_features import display_enhanced_file_upload
+from news_predictor import get_news_predictor
+from universal_predictor import get_universal_predictor
 
 # Page configuration
 st.set_page_config(
@@ -32,6 +34,10 @@ if 'visualizer' not in st.session_state:
     st.session_state.visualizer = ChartVisualizer()
 if 'db_manager' not in st.session_state:
     st.session_state.db_manager = get_database_manager()
+if 'news_predictor' not in st.session_state:
+    st.session_state.news_predictor = get_news_predictor()
+if 'universal_predictor' not in st.session_state:
+    st.session_state.universal_predictor = get_universal_predictor()
 if 'last_update' not in st.session_state:
     st.session_state.last_update = None
 if 'kse_data' not in st.session_state:
@@ -89,7 +95,7 @@ def main():
         # Analysis type selection
         analysis_type = st.selectbox(
             "Select Analysis Type",
-            ["Live Market Dashboard", "⚡ 5-Minute Live Predictions", "KSE-100 Index", "Individual Companies", "Advanced Forecasting Hub", "Enhanced File Upload", "File Upload Prediction", "All Companies Live Prices", "Intraday Trading Sessions", "Comprehensive Intraday Forecasts", "Database Overview"],
+            ["Live Market Dashboard", "⚡ 5-Minute Live Predictions", "KSE-100 Index", "Individual Companies", "Advanced Forecasting Hub", "📁 Universal File Upload", "📰 News-Based Predictions", "Enhanced File Upload", "All Companies Live Prices", "Intraday Trading Sessions", "Comprehensive Intraday Forecasts", "Database Overview"],
             key="analysis_type"
         )
         
@@ -141,10 +147,12 @@ def main():
     elif analysis_type == "Advanced Forecasting Hub":
         from advanced_forecasting import display_advanced_forecasting_dashboard
         display_advanced_forecasting_dashboard()
+    elif analysis_type == "📁 Universal File Upload":
+        display_universal_file_upload()
+    elif analysis_type == "📰 News-Based Predictions":
+        display_news_based_predictions()
     elif analysis_type == "Enhanced File Upload":
         display_enhanced_file_upload()
-    elif analysis_type == "File Upload Prediction":
-        display_file_upload_prediction()
     elif analysis_type == "All Companies Live Prices":
         display_all_companies_live_prices()
     elif analysis_type == "Intraday Trading Sessions":
@@ -2332,6 +2340,364 @@ def display_five_minute_live_predictions():
     # Data sources info
     st.markdown("---")
     st.info("📊 **Data Sources:** Live scraping from PSX, Yahoo Finance, and Investing.com | Updates every 5 seconds")
+
+def display_universal_file_upload():
+    """Universal file upload functionality for any brand prediction"""
+    st.subheader("📁 Universal File Upload & Prediction")
+    
+    st.markdown("""
+    **Upload financial data for ANY brand or instrument**
+    
+    Supported instruments: PSX stocks, XAUSD, Forex pairs, Commodities, Crypto, etc.
+    Supported formats: CSV, Excel (.xlsx, .xls)
+    Required columns: Date/Time, Price/Close (or similar naming)
+    """)
+    
+    # Brand name input
+    brand_name = st.text_input("Enter Brand/Instrument Name:", placeholder="e.g., XAUSD, OGDC, EUR/USD, BTC/USD", key="brand_name_input")
+    
+    uploaded_file = st.file_uploader("Choose a file", type=['csv', 'xlsx', 'xls'])
+    
+    if uploaded_file is not None and brand_name:
+        try:
+            # Process uploaded file
+            with st.spinner("Processing uploaded file..."):
+                analysis = st.session_state.universal_predictor.process_uploaded_file(uploaded_file, brand_name)
+            
+            if 'error' in analysis:
+                st.error(analysis['error'])
+                return
+            
+            # Display file analysis
+            st.subheader(f"📊 Data Analysis for {brand_name}")
+            
+            col1, col2, col3, col4 = st.columns(4)
+            
+            with col1:
+                st.metric("Total Records", analysis['total_rows'])
+            
+            with col2:
+                st.metric("Columns", analysis['total_columns'])
+            
+            with col3:
+                if analysis['data_range']:
+                    st.metric("Date Range", f"{analysis['data_range']['total_days']} days")
+                else:
+                    st.metric("Date Range", "N/A")
+            
+            with col4:
+                if 'price_stats' in analysis:
+                    current_price = analysis['price_stats']['current']
+                    st.metric("Current Price", f"{current_price:.4f}")
+            
+            # Show data preview
+            st.subheader("📋 Data Preview")
+            st.dataframe(pd.DataFrame(analysis['sample_data']))
+            
+            # Column mapping
+            st.subheader("🎯 Column Mapping")
+            
+            col1, col2 = st.columns(2)
+            
+            with col1:
+                if analysis['price_column']:
+                    st.success(f"✅ Price column detected: {analysis['price_column']}")
+                    price_column = analysis['price_column']
+                else:
+                    price_column = st.selectbox("Select Price Column:", analysis['columns'])
+            
+            with col2:
+                if analysis['date_column']:
+                    st.success(f"✅ Date column detected: {analysis['date_column']}")
+                    date_column = analysis['date_column']
+                else:
+                    date_column = st.selectbox("Select Date Column:", ['None'] + analysis['columns'])
+            
+            # Generate predictions
+            if st.button("🔮 Generate Predictions", key="generate_universal_prediction"):
+                if price_column:
+                    with st.spinner("Generating comprehensive predictions..."):
+                        # Read file again for prediction
+                        if uploaded_file.name.endswith('.csv'):
+                            df = pd.read_csv(uploaded_file)
+                        else:
+                            df = pd.read_excel(uploaded_file)
+                        
+                        # Generate predictions
+                        predictions = st.session_state.universal_predictor.generate_predictions(
+                            df, brand_name, price_column, date_column if date_column != 'None' else None
+                        )
+                        
+                        if 'error' in predictions:
+                            st.error(predictions['error'])
+                            return
+                        
+                        # Display prediction results
+                        st.subheader(f"🔮 Prediction Results for {brand_name}")
+                        
+                        # Current statistics
+                        col1, col2, col3, col4 = st.columns(4)
+                        
+                        with col1:
+                            st.metric("Current Price", f"{predictions['current_price']:.4f}")
+                        
+                        with col2:
+                            volatility = predictions['volatility'] * 100
+                            st.metric("Volatility", f"{volatility:.2f}%")
+                        
+                        with col3:
+                            trend = predictions['trend'] * 100
+                            trend_color = "normal" if abs(trend) < 0.1 else "inverse" if trend < 0 else "normal"
+                            st.metric("Trend", f"{trend:+.2f}%", delta_color=trend_color)
+                        
+                        with col4:
+                            st.metric("Data Points", predictions['data_points'])
+                        
+                        # Prediction tabs
+                        pred_tab1, pred_tab2, pred_tab3, pred_tab4 = st.tabs([
+                            "📅 Short-term (1-7 days)", 
+                            "📆 Medium-term (1-4 weeks)", 
+                            "📊 Long-term (1-3 months)",
+                            "🔧 Technical Analysis"
+                        ])
+                        
+                        with pred_tab1:
+                            st.markdown("**Short-term Predictions (Next 7 Days)**")
+                            short_term = predictions['predictions']['short_term']
+                            
+                            # Display predictions in a table
+                            df_short = pd.DataFrame(short_term)
+                            st.dataframe(df_short, use_container_width=True)
+                            
+                            # Create chart
+                            fig_short = go.Figure()
+                            fig_short.add_trace(go.Scatter(
+                                x=df_short['date'],
+                                y=df_short['predicted_price'],
+                                mode='lines+markers',
+                                name='Predicted Price',
+                                line=dict(color='red', width=3),
+                                marker=dict(size=8)
+                            ))
+                            
+                            fig_short.update_layout(
+                                title=f"{brand_name} - Short-term Predictions",
+                                xaxis_title="Date",
+                                yaxis_title="Price",
+                                height=400
+                            )
+                            
+                            st.plotly_chart(fig_short, use_container_width=True)
+                        
+                        with pred_tab2:
+                            st.markdown("**Medium-term Predictions (Next 4 Weeks)**")
+                            medium_term = predictions['predictions']['medium_term']
+                            
+                            df_medium = pd.DataFrame(medium_term)
+                            st.dataframe(df_medium, use_container_width=True)
+                        
+                        with pred_tab3:
+                            st.markdown("**Long-term Predictions (Next 3 Months)**")
+                            long_term = predictions['predictions']['long_term']
+                            
+                            df_long = pd.DataFrame(long_term)
+                            st.dataframe(df_long, use_container_width=True)
+                        
+                        with pred_tab4:
+                            st.markdown("**Technical Analysis**")
+                            tech_analysis = predictions['technical_analysis']
+                            
+                            if 'error' not in tech_analysis:
+                                col1, col2 = st.columns(2)
+                                
+                                with col1:
+                                    st.subheader("Moving Averages")
+                                    ma_data = tech_analysis['moving_averages']
+                                    if ma_data['ma_5']:
+                                        st.metric("MA-5", f"{ma_data['ma_5']:.4f}")
+                                    if ma_data['ma_10']:
+                                        st.metric("MA-10", f"{ma_data['ma_10']:.4f}")
+                                    if ma_data['ma_20']:
+                                        st.metric("MA-20", f"{ma_data['ma_20']:.4f}")
+                                
+                                with col2:
+                                    st.subheader("Key Levels")
+                                    st.metric("RSI", f"{tech_analysis['rsi']:.2f}")
+                                    st.metric("Support", f"{tech_analysis['support_level']:.4f}")
+                                    st.metric("Resistance", f"{tech_analysis['resistance_level']:.4f}")
+                            else:
+                                st.error(tech_analysis['error'])
+                else:
+                    st.error("Please select a price column")
+        
+        except Exception as e:
+            st.error(f"Error processing file: {str(e)}")
+    else:
+        if not brand_name:
+            st.info("Please enter a brand/instrument name")
+        else:
+            st.info("Please upload a file to get started")
+
+def display_news_based_predictions():
+    """Display news-based market predictions"""
+    st.subheader("📰 News-Based Market Predictions")
+    
+    st.markdown("""
+    **Live Market Predictions Based on News Sentiment Analysis**
+    
+    This system fetches live financial news from Pakistani sources and analyzes sentiment to predict market movements.
+    """)
+    
+    # Select symbol for news-based prediction
+    col1, col2 = st.columns(2)
+    
+    with col1:
+        symbol = st.selectbox(
+            "Select Symbol for News Analysis:",
+            ["KSE-100", "OGDC", "PPL", "PSO", "MARI", "ENGRO", "LUCK", "UBL", "MCB", "HBL"],
+            key="news_symbol_select"
+        )
+    
+    with col2:
+        if st.button("🔄 Fetch Live News & Predict", key="fetch_news_predict"):
+            with st.spinner("Fetching live news and analyzing sentiment..."):
+                # Get current price
+                live_price_data = st.session_state.data_fetcher.get_live_company_price(symbol)
+                current_price = live_price_data['price'] if live_price_data else 100.0  # fallback
+                
+                # Generate news-based prediction
+                news_prediction = st.session_state.news_predictor.generate_news_based_prediction(current_price, symbol)
+                
+                if news_prediction:
+                    # Display prediction results
+                    st.subheader(f"📊 News-Based Prediction for {symbol}")
+                    
+                    # Current vs predicted metrics
+                    col1, col2, col3, col4 = st.columns(4)
+                    
+                    with col1:
+                        st.metric("Current Price", f"PKR {news_prediction['current_price']:.2f}")
+                    
+                    with col2:
+                        predicted_price = news_prediction['predicted_price']
+                        price_change = news_prediction['price_change']
+                        st.metric("Predicted Price", f"PKR {predicted_price:.2f}", f"{price_change:+.2f}")
+                    
+                    with col3:
+                        change_percent = news_prediction['change_percent']
+                        st.metric("Expected Change", f"{change_percent:+.2f}%")
+                    
+                    with col4:
+                        confidence = news_prediction['confidence'] * 100
+                        st.metric("Confidence", f"{confidence:.1f}%")
+                    
+                    # Sentiment analysis results
+                    st.subheader("📈 Sentiment Analysis")
+                    sentiment = news_prediction['sentiment']
+                    
+                    col1, col2, col3 = st.columns(3)
+                    
+                    with col1:
+                        if sentiment['sentiment'] == 'positive':
+                            st.success(f"✅ **Positive Sentiment**")
+                            st.write(f"Prediction: **{sentiment['prediction'].upper()}**")
+                        elif sentiment['sentiment'] == 'negative':
+                            st.error(f"❌ **Negative Sentiment**")
+                            st.write(f"Prediction: **{sentiment['prediction'].upper()}**")
+                        else:
+                            st.info(f"➡️ **Neutral Sentiment**")
+                            st.write(f"Prediction: **{sentiment['prediction'].upper()}**")
+                    
+                    with col2:
+                        st.metric("News Articles", news_prediction['news_count'])
+                        st.metric("Sentiment Score", f"{sentiment['score']:.3f}")
+                    
+                    with col3:
+                        st.metric("Analysis Confidence", f"{sentiment['confidence']*100:.1f}%")
+                        trend = news_prediction['trend']
+                        if trend == 'upward':
+                            st.success("📈 Upward Trend")
+                        elif trend == 'downward':
+                            st.error("📉 Downward Trend")
+                        else:
+                            st.info("➡️ Stable Trend")
+                    
+                    # Price prediction chart
+                    st.subheader("📊 Price Prediction Visualization")
+                    
+                    fig = go.Figure()
+                    
+                    # Current price
+                    fig.add_trace(go.Scatter(
+                        x=["Current"],
+                        y=[current_price],
+                        mode='markers',
+                        name='Current Price',
+                        marker=dict(size=15, color='blue', symbol='circle')
+                    ))
+                    
+                    # Predicted price
+                    color = 'green' if change_percent > 0 else 'red' if change_percent < 0 else 'gray'
+                    fig.add_trace(go.Scatter(
+                        x=["Predicted"],
+                        y=[predicted_price],
+                        mode='markers',
+                        name='News-Based Prediction',
+                        marker=dict(size=15, color=color, symbol='star')
+                    ))
+                    
+                    # Add trend line
+                    fig.add_trace(go.Scatter(
+                        x=["Current", "Predicted"],
+                        y=[current_price, predicted_price],
+                        mode='lines',
+                        name='Price Movement',
+                        line=dict(color=color, width=3, dash='dash')
+                    ))
+                    
+                    fig.update_layout(
+                        title=f"{symbol} - News-Based Price Prediction",
+                        xaxis_title="Time",
+                        yaxis_title="Price (PKR)",
+                        height=400,
+                        showlegend=True
+                    )
+                    
+                    st.plotly_chart(fig, use_container_width=True)
+                    
+                    # News insights
+                    st.subheader("📝 Market Insights")
+                    
+                    if sentiment['sentiment'] == 'positive':
+                        st.success(f"""
+                        **Bullish Market Outlook**
+                        
+                        Based on the analysis of {news_prediction['news_count']} recent news articles, the market sentiment for {symbol} appears positive. 
+                        Key indicators suggest potential upward movement with {confidence:.1f}% confidence.
+                        
+                        **Recommendation:** Consider monitoring for buying opportunities.
+                        """)
+                    elif sentiment['sentiment'] == 'negative':
+                        st.error(f"""
+                        **Bearish Market Outlook**
+                        
+                        Analysis of {news_prediction['news_count']} recent news articles indicates negative market sentiment for {symbol}. 
+                        Current indicators suggest potential downward pressure with {confidence:.1f}% confidence.
+                        
+                        **Recommendation:** Exercise caution and consider risk management strategies.
+                        """)
+                    else:
+                        st.info(f"""
+                        **Neutral Market Outlook**
+                        
+                        Based on {news_prediction['news_count']} recent news articles, market sentiment for {symbol} appears neutral. 
+                        No strong directional bias detected with current confidence level at {confidence:.1f}%.
+                        
+                        **Recommendation:** Continue monitoring for clearer market signals.
+                        """)
+                
+                else:
+                    st.error("Unable to fetch news data or generate predictions. Please try again later.")
 
 if __name__ == "__main__":
     main()
