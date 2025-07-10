@@ -15,7 +15,7 @@ from utils import export_to_csv, format_currency, format_market_status
 from database import get_database_manager
 from enhanced_features import display_enhanced_file_upload
 from news_predictor import get_news_predictor
-from universal_predictor import get_universal_predictor
+from universal_predictor_new import get_universal_predictor
 from file_debug import analyze_uploaded_file, create_manual_dataframe
 
 # Page configuration

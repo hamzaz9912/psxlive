@@ -1,0 +1,139 @@
+"""
+Simple and robust file reader for universal file upload
+"""
+import pandas as pd
+import io
+import chardet
+
+def read_any_file(uploaded_file):
+    """
+    Read any CSV or Excel file with maximum compatibility
+    Returns: (dataframe, error_message)
+    """
+    try:
+        # Reset file pointer
+        uploaded_file.seek(0)
+        
+        # Get file extension
+        file_extension = uploaded_file.name.split('.')[-1].lower()
+        
+        if file_extension in ['xlsx', 'xls']:
+            # Excel files
+            try:
+                df = pd.read_excel(uploaded_file)
+                if df.empty:
+                    return None, "Excel file is empty"
+                return df, None
+            except Exception as e:
+                return None, f"Excel reading failed: {str(e)}"
+        
+        elif file_extension == 'csv':
+            # CSV files - try multiple approaches
+            uploaded_file.seek(0)
+            raw_content = uploaded_file.read()
+            
+            # Detect encoding
+            encoding_result = chardet.detect(raw_content)
+            detected_encoding = encoding_result.get('encoding', 'utf-8')
+            
+            # Decode content
+            try:
+                text_content = raw_content.decode(detected_encoding)
+            except:
+                try:
+                    text_content = raw_content.decode('utf-8')
+                except:
+                    try:
+                        text_content = raw_content.decode('latin-1')
+                    except:
+                        return None, "Cannot decode file with any encoding"
+            
+            # Try different delimiters
+            delimiters = [',', ';', '\t', '|']
+            
+            for delimiter in delimiters:
+                try:
+                    # Create StringIO from decoded content
+                    string_io = io.StringIO(text_content)
+                    df = pd.read_csv(string_io, delimiter=delimiter)
+                    
+                    # Check if dataframe is valid
+                    if not df.empty and len(df.columns) > 0:
+                        # Check if we have meaningful data (not just one column with everything)
+                        if len(df.columns) > 1 or df.iloc[0, 0] != text_content.split('\n')[0]:
+                            return df, None
+                except:
+                    continue
+            
+            # If all delimiters fail, try without headers
+            try:
+                string_io = io.StringIO(text_content)
+                df = pd.read_csv(string_io, header=None)
+                
+                if not df.empty and len(df.columns) > 0:
+                    # Generate column names
+                    df.columns = [f'Column_{i+1}' for i in range(len(df.columns))]
+                    return df, None
+            except:
+                pass
+            
+            return None, f"Cannot parse CSV file with any delimiter or format"
+        
+        else:
+            return None, f"Unsupported file format: {file_extension}"
+            
+    except Exception as e:
+        return None, f"File reading error: {str(e)}"
+
+def analyze_dataframe(df, brand_name="Unknown"):
+    """
+    Analyze dataframe and identify price/date columns
+    """
+    try:
+        # Basic statistics
+        analysis = {
+            'total_rows': len(df),
+            'total_columns': len(df.columns),
+            'columns': list(df.columns),
+            'sample_data': df.head(3).to_dict('records') if len(df) > 0 else [],
+            'brand': brand_name
+        }
+        
+        # Try to identify price column
+        price_candidates = []
+        date_candidates = []
+        
+        for col in df.columns:
+            col_lower = str(col).lower()
+            
+            # Check for price-related columns
+            if any(word in col_lower for word in ['price', 'close', 'last', 'value', 'high', 'low', 'open']):
+                price_candidates.append(col)
+            
+            # Check for date-related columns
+            if any(word in col_lower for word in ['date', 'time', 'datetime', 'timestamp']):
+                date_candidates.append(col)
+        
+        # If no obvious candidates, check data types
+        if not price_candidates:
+            for col in df.columns:
+                try:
+                    # Try to convert to numeric
+                    pd.to_numeric(df[col], errors='raise')
+                    price_candidates.append(col)
+                except:
+                    pass
+        
+        analysis['price_candidates'] = price_candidates
+        analysis['date_candidates'] = date_candidates
+        
+        if price_candidates:
+            analysis['recommended_price_column'] = price_candidates[0]
+        
+        if date_candidates:
+            analysis['recommended_date_column'] = date_candidates[0]
+        
+        return analysis
+        
+    except Exception as e:
+        return {'error': f"Analysis failed: {str(e)}"}
