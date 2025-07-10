@@ -16,7 +16,7 @@ from database import get_database_manager
 from enhanced_features import display_enhanced_file_upload
 from news_predictor import get_news_predictor
 from universal_predictor_new import get_universal_predictor
-
+from file_debug import analyze_uploaded_file, create_manual_dataframe
 
 # Page configuration
 st.set_page_config(
@@ -2416,14 +2416,676 @@ def display_five_minute_live_predictions():
     st.info("📊 **Data Sources:** Live scraping from PSX, Yahoo Finance, and Investing.com | Updates every 5 seconds")
 
 def display_universal_file_upload():
-    """Universal file upload functionality with clean interface"""
-    from clean_universal_upload import display_universal_file_upload as universal_upload
-    universal_upload()
-
-def display_universal_predictions(df, brand_name, prediction_type):
-    """Display universal predictions wrapper"""
-    from clean_universal_upload import display_universal_predictions as universal_predictions
-    universal_predictions(df, brand_name, prediction_type)
+    """Universal file upload functionality for any brand prediction"""
+    st.subheader("📁 Universal File Upload & Prediction")
+    
+    st.markdown("""
+    **Upload financial data for ANY brand or instrument**
+    
+    Supported instruments: PSX stocks, XAUSD, Forex pairs, Commodities, Crypto, etc.
+    Supported formats: CSV, Excel (.xlsx, .xls)
+    Required columns: Date/Time, Price/Close (or similar naming)
+    """)
+    
+    # Add sample data download option
+    st.markdown("---")
+    st.subheader("📋 Sample Data")
+    st.markdown("If you're testing the functionality, you can download and use this sample XAUSD data:")
+    
+    if st.button("📥 Download Sample XAUSD Data"):
+        sample_data = """Date,Close,Open,High,Low,Volume
+2025-01-01,2654.32,2650.00,2658.45,2647.23,12500
+2025-01-02,2658.91,2654.32,2662.18,2651.67,15200
+2025-01-03,2651.45,2658.91,2665.30,2649.82,18750
+2025-01-04,2663.78,2651.45,2668.90,2648.12,21300
+2025-01-05,2672.34,2663.78,2675.60,2661.45,16800
+2025-01-06,2668.23,2672.34,2677.89,2664.56,14200
+2025-01-07,2675.89,2668.23,2681.23,2666.78,19500
+2025-01-08,2679.45,2675.89,2683.67,2673.21,17600
+2025-01-09,2681.23,2679.45,2687.90,2676.34,20100
+2025-01-10,2685.67,2681.23,2691.45,2678.90,18900"""
+        
+        st.download_button(
+            label="💾 Download sample_xausd.csv",
+            data=sample_data,
+            file_name="sample_xausd.csv",
+            mime="text/csv"
+        )
+    
+    st.markdown("---")
+    
+    # Brand name input
+    brand_name = st.text_input("Enter Brand/Instrument Name:", placeholder="e.g., XAUSD, OGDC, EUR/USD, BTC/USD", key="brand_name_input")
+    
+    uploaded_file = st.file_uploader("Choose a file", type=['csv', 'xlsx', 'xls'])
+    
+    if uploaded_file is not None and brand_name:
+        try:
+            # Show file details for debugging
+            st.info(f"**File Details:** {uploaded_file.name} ({uploaded_file.size} bytes, type: {uploaded_file.type})")
+            
+            # Process uploaded file using the new simple file reader
+            with st.spinner("Processing uploaded file..."):
+                from simple_file_reader import read_any_file, analyze_dataframe
+                
+                # Reset file pointer to beginning
+                uploaded_file.seek(0)
+                
+                # Read the file using simple file reader
+                df, error_message = read_any_file(uploaded_file)
+                
+                if error_message:
+                    analysis = {'error': error_message}
+                else:
+                    # Analyze the dataframe
+                    analysis = analyze_dataframe(df, brand_name)
+                    analysis['data'] = df
+                    analysis['columns'] = df.columns.tolist()
+                    analysis['shape'] = df.shape
+            
+            if 'error' in analysis:
+                st.error(f"**Processing Error:** {analysis['error']}")
+                
+                # Run comprehensive file analysis
+                with st.spinner("Running comprehensive file analysis..."):
+                    file_analysis = analyze_uploaded_file(uploaded_file)
+                
+                # Show comprehensive debug information
+                with st.expander("🔍 Comprehensive File Analysis", expanded=True):
+                    st.write("### Basic File Information")
+                    st.write(f"**File name:** {file_analysis.get('file_name', 'Unknown')}")
+                    st.write(f"**File size:** {file_analysis.get('file_size', 0)} bytes")
+                    st.write(f"**File type:** {file_analysis.get('file_type', 'Unknown')}")
+                    st.write(f"**Raw size:** {file_analysis.get('raw_size', 0)} bytes")
+                    
+                    # Encoding detection
+                    if 'detected_encoding' in file_analysis:
+                        encoding_info = file_analysis['detected_encoding']
+                        st.write("### Encoding Detection")
+                        st.write(f"**Detected encoding:** {encoding_info.get('encoding', 'Unknown')}")
+                        st.write(f"**Confidence:** {encoding_info.get('confidence', 0):.2%}")
+                    
+                    # Content analysis
+                    if file_analysis.get('decode_success', False):
+                        st.write("### Content Structure")
+                        st.write(f"**Content length:** {file_analysis.get('content_length', 0)} characters")
+                        st.write(f"**Total lines:** {file_analysis.get('total_lines', 0)}")
+                        st.write(f"**Non-empty lines:** {file_analysis.get('non_empty_lines', 0)}")
+                        
+                        # First line analysis
+                        if 'first_line' in file_analysis:
+                            st.write("### First Line Analysis")
+                            st.code(f"First line: {file_analysis['first_line']}")
+                            st.write(f"**Length:** {file_analysis.get('first_line_length', 0)} characters")
+                            
+                            # Delimiter analysis
+                            if 'delimiter_counts' in file_analysis:
+                                delim_counts = file_analysis['delimiter_counts']
+                                st.write("**Delimiter counts:**")
+                                for delim, count in delim_counts.items():
+                                    st.write(f"- {delim}: {count}")
+                                
+                                st.write(f"**Suggested delimiter:** {file_analysis.get('suggested_delimiter', 'unknown')}")
+                                st.write(f"**Potential columns:** {file_analysis.get('potential_columns', 0)}")
+                                
+                                if 'potential_headers' in file_analysis:
+                                    st.write("**Potential headers:**")
+                                    for i, header in enumerate(file_analysis['potential_headers']):
+                                        st.write(f"{i+1}. {header}")
+                                
+                                st.write(f"**Consistent data rows:** {file_analysis.get('consistent_data_rows', 0)}")
+                                st.write(f"**Data consistency:** {'✓' if file_analysis.get('data_consistency', False) else '✗'}")
+                        
+                        # Show first few lines
+                        if 'first_5_lines' in file_analysis:
+                            st.write("### First 5 Lines")
+                            for i, line in enumerate(file_analysis['first_5_lines']):
+                                st.code(f"Line {i+1}: {repr(line)}")
+                    
+                    else:
+                        st.error(f"**Decode failed:** {file_analysis.get('decode_error', 'Unknown error')}")
+                    
+                    # Pandas attempts
+                    if 'pandas_attempts' in file_analysis:
+                        st.write("### Pandas Reading Attempts")
+                        successful_count = file_analysis.get('successful_pandas_methods', 0)
+                        st.write(f"**Successful methods:** {successful_count} out of {len(file_analysis['pandas_attempts'])}")
+                        
+                        for attempt in file_analysis['pandas_attempts']:
+                            if attempt['success']:
+                                st.success(f"✓ {attempt['method']}: {attempt['rows']} rows, {attempt['columns']} columns")
+                                if 'column_names' in attempt:
+                                    st.write(f"   Columns: {attempt['column_names']}")
+                            else:
+                                st.error(f"✗ {attempt['method']}: {attempt['error']}")
+                        
+                        # Show recommended method
+                        if 'recommended_method' in file_analysis:
+                            rec = file_analysis['recommended_method']
+                            st.info(f"**Recommended method:** {rec['method']} ({rec['rows']} rows, {rec['columns']} columns)")
+                
+                # Enhanced manual processing
+                st.markdown("---")
+                st.subheader("🔧 Enhanced Manual Processing")
+                
+                if file_analysis.get('decode_success', False) and file_analysis.get('data_consistency', False):
+                    st.success("File appears to have consistent structure. Try automatic processing:")
+                    
+                    # Automatic processing with detected parameters
+                    if st.button("🚀 Try Automatic Processing with Detected Parameters", key="auto_process"):
+                        try:
+                            uploaded_file.seek(0)
+                            if file_analysis.get('suggested_delimiter') == 'comma':
+                                delimiter = ','
+                            elif file_analysis.get('suggested_delimiter') == 'semicolon':
+                                delimiter = ';'
+                            elif file_analysis.get('suggested_delimiter') == 'tab':
+                                delimiter = '\t'
+                            elif file_analysis.get('suggested_delimiter') == 'pipe':
+                                delimiter = '|'
+                            else:
+                                delimiter = ','
+                            
+                            encoding = file_analysis.get('detected_encoding', {}).get('encoding', 'utf-8')
+                            
+                            # Try to create dataframe with detected parameters
+                            df = pd.read_csv(uploaded_file, delimiter=delimiter, encoding=encoding)
+                            
+                            if not df.empty:
+                                st.success(f"Automatic processing successful! Created dataframe with {len(df)} rows and {len(df.columns)} columns.")
+                                st.dataframe(df.head(), use_container_width=True)
+                                
+                                # Store result for prediction
+                                st.session_state.manual_df = df
+                                st.session_state.manual_brand = brand_name
+                                st.success("Processing completed! You can now generate predictions.")
+                            else:
+                                st.error("Dataframe is empty")
+                                
+                        except Exception as auto_error:
+                            st.error(f"Automatic processing failed: {str(auto_error)}")
+                
+                # Manual parameter selection
+                st.write("### Manual Parameter Selection")
+                
+                col1, col2 = st.columns(2)
+                
+                with col1:
+                    delimiter_options = {
+                        'Comma (,)': ',',
+                        'Semicolon (;)': ';',
+                        'Tab': '\t',
+                        'Pipe (|)': '|',
+                        'Space': ' '
+                    }
+                    selected_delimiter = st.selectbox("Select delimiter:", list(delimiter_options.keys()), key="manual_delimiter_select")
+                    delimiter = delimiter_options[selected_delimiter]
+                
+                with col2:
+                    encoding_options = ['utf-8', 'latin-1', 'iso-8859-1', 'cp1252', 'ascii']
+                    selected_encoding = st.selectbox("Select encoding:", encoding_options, key="manual_encoding_select")
+                
+                if st.button("🔄 Try Manual Processing", key="manual_process"):
+                    try:
+                        uploaded_file.seek(0)
+                        raw_content = uploaded_file.read().decode(selected_encoding)
+                        
+                        manual_df, status = create_manual_dataframe(raw_content, delimiter, 0, selected_encoding)
+                        
+                        if manual_df is not None:
+                            st.success(f"Manual processing successful! {status}")
+                            st.write(f"Created dataframe with {len(manual_df)} rows and {len(manual_df.columns)} columns.")
+                            st.dataframe(manual_df.head(), use_container_width=True)
+                            
+                            # Store result for prediction
+                            st.session_state.manual_df = manual_df
+                            st.session_state.manual_brand = brand_name
+                            st.success("Manual processing completed! You can now generate predictions.")
+                        else:
+                            st.error(f"Manual processing failed: {status}")
+                            
+                    except Exception as manual_error:
+                        st.error(f"Manual processing failed: {str(manual_error)}")
+                
+                return
+            
+            # Display file analysis
+            st.subheader(f"📊 Data Analysis for {brand_name}")
+            
+            col1, col2, col3, col4 = st.columns(4)
+            
+            with col1:
+                st.metric("Total Records", analysis['shape'][0])
+            
+            with col2:
+                st.metric("Columns", analysis['shape'][1])
+            
+            with col3:
+                if analysis.get('data_range') and 'error' not in str(analysis.get('data_range', '')):
+                    st.metric("Date Range", f"{analysis['data_range']['total_days']} days")
+                else:
+                    st.metric("Date Range", "N/A")
+            
+            with col4:
+                if analysis.get('price_stats') and 'error' not in str(analysis.get('price_stats', '')):
+                    current_price = analysis['price_stats']['current']
+                    st.metric("Current Price", f"{current_price:.4f}")
+                else:
+                    st.metric("Current Price", "N/A")
+            
+            # Show detailed column information
+            st.subheader("📋 Column Information")
+            col_info = []
+            for col in analysis['columns']:
+                col_type = str(analysis.get('data_types', {}).get(col, 'unknown'))
+                col_info.append({'Column': str(col), 'Type': col_type})
+            
+            if col_info:
+                try:
+                    col_df = pd.DataFrame(col_info)
+                    # Ensure all columns are string type to avoid Arrow conversion issues
+                    col_df = col_df.astype(str)
+                    st.dataframe(col_df, use_container_width=True)
+                except Exception as e:
+                    st.warning(f"Column info display error: {str(e)}")
+                    st.write("**Available columns:**", ", ".join(analysis['columns']))
+            else:
+                st.warning("No column information available.")
+            
+            # Show data preview
+            st.subheader("📋 Data Preview")
+            try:
+                if 'data' in analysis and isinstance(analysis['data'], pd.DataFrame):
+                    st.dataframe(analysis['data'].head(10), use_container_width=True)
+                elif 'sample_data' in analysis and analysis['sample_data']:
+                    if isinstance(analysis['sample_data'], pd.DataFrame):
+                        st.dataframe(analysis['sample_data'], use_container_width=True)
+                    else:
+                        preview_df = pd.DataFrame(analysis['sample_data'])
+                        st.dataframe(preview_df, use_container_width=True)
+                else:
+                    st.warning("No sample data available to preview.")
+            except Exception as e:
+                st.error(f"Error displaying preview: {str(e)}")
+                st.write("Raw sample data type:", type(analysis.get('sample_data', 'None')))
+            
+            # Column mapping
+            st.subheader("🎯 Column Mapping")
+            
+            col1, col2 = st.columns(2)
+            
+            with col1:
+                if analysis['price_column']:
+                    st.success(f"✅ Price column detected: {analysis['price_column']}")
+                    price_column = analysis['price_column']
+                else:
+                    price_column = st.selectbox("Select Price Column:", analysis['columns'])
+            
+            with col2:
+                if analysis['date_column']:
+                    st.success(f"✅ Date column detected: {analysis['date_column']}")
+                    date_column = analysis['date_column']
+                else:
+                    date_column = st.selectbox("Select Date Column:", ['None'] + analysis['columns'])
+            
+            # Generate predictions
+            if st.button("🔮 Generate Predictions", key="generate_universal_prediction"):
+                if price_column:
+                    with st.spinner("Generating comprehensive predictions..."):
+                        # Use the already loaded dataframe
+                        df = analysis['data']
+                        
+                        # Generate predictions
+                        predictions = st.session_state.universal_predictor.generate_predictions(
+                            df, brand_name, price_column, date_column if date_column != 'None' else None
+                        )
+                        
+                        if 'error' in predictions:
+                            st.error(predictions['error'])
+                            return
+                        
+                        # Display prediction results
+                        st.subheader(f"🔮 Prediction Results for {brand_name}")
+                        
+                        # Current statistics
+                        col1, col2, col3, col4 = st.columns(4)
+                        
+                        with col1:
+                            st.metric("Current Price", f"{predictions['current_price']:.4f}")
+                        
+                        with col2:
+                            volatility = predictions['volatility'] * 100
+                            st.metric("Volatility", f"{volatility:.2f}%")
+                        
+                        with col3:
+                            trend = predictions['trend'] * 100
+                            trend_color = "normal" if abs(trend) < 0.1 else "inverse" if trend < 0 else "normal"
+                            st.metric("Trend", f"{trend:+.2f}%", delta_color=trend_color)
+                        
+                        with col4:
+                            st.metric("Data Points", predictions['data_points'])
+                        
+                        # Prediction tabs
+                        pred_tab1, pred_tab2, pred_tab3, pred_tab4, pred_tab5 = st.tabs([
+                            "📅 Next 7 Days", 
+                            "⚡ Intraday 5-Min",
+                            "📆 Medium-term (1-4 weeks)", 
+                            "📊 Long-term (1-3 months)",
+                            "🔧 Technical Analysis"
+                        ])
+                        
+                        with pred_tab1:
+                            st.markdown("**📅 Next 7 Days Detailed Predictions**")
+                            next_7_days = predictions['predictions']['next_7_days']
+                            
+                            # Display predictions in enhanced table
+                            df_7days = pd.DataFrame(next_7_days)
+                            
+                            # Add color coding for trends
+                            def highlight_trend(row):
+                                if row['trend'] == 'Bullish':
+                                    return ['background-color: #90EE90'] * len(row)
+                                elif row['trend'] == 'Bearish':
+                                    return ['background-color: #FFB6C1'] * len(row)
+                                else:
+                                    return ['background-color: #FFFACD'] * len(row)
+                            
+                            styled_df = df_7days.style.apply(highlight_trend, axis=1)
+                            st.dataframe(styled_df, use_container_width=True)
+                            
+                            # Create enhanced chart
+                            fig_7days = go.Figure()
+                            
+                            # Add current price line
+                            fig_7days.add_hline(
+                                y=predictions['current_price'], 
+                                line_dash="dot", 
+                                line_color="blue",
+                                annotation_text=f"Current: {predictions['current_price']:.4f}"
+                            )
+                            
+                            # Add predictions
+                            fig_7days.add_trace(go.Scatter(
+                                x=df_7days['date'],
+                                y=df_7days['predicted_price'],
+                                mode='lines+markers',
+                                name='7-Day Predictions',
+                                line=dict(color='red', width=3),
+                                marker=dict(size=10, color=df_7days['confidence'], 
+                                          colorscale='RdYlGn', showscale=True, 
+                                          colorbar=dict(title="Confidence"))
+                            ))
+                            
+                            fig_7days.update_layout(
+                                title=f"{brand_name} - Next 7 Days Predictions",
+                                xaxis_title="Date",
+                                yaxis_title="Price",
+                                height=500,
+                                showlegend=True
+                            )
+                            
+                            st.plotly_chart(fig_7days, use_container_width=True)
+                        
+                        with pred_tab2:
+                            st.markdown("**⚡ Intraday 5-Minute Predictions with Day Selection**")
+                            
+                            intraday_data = predictions['predictions']['intraday_5min']
+                            available_days = list(intraday_data.keys())
+                            
+                            # Day selection
+                            col1, col2 = st.columns([2, 1])
+                            with col1:
+                                selected_day = st.selectbox(
+                                    "Select Trading Day for Intraday Analysis:",
+                                    available_days,
+                                    format_func=lambda x: f"{x} ({intraday_data[x]['day_name']})"
+                                )
+                            
+                            with col2:
+                                day_summary = intraday_data[selected_day]['day_summary']
+                                st.metric("Daily Change", f"{day_summary['daily_change']:+.2f}%")
+                            
+                            # Display day summary
+                            st.subheader(f"📊 {selected_day} Trading Session Summary")
+                            
+                            col1, col2, col3, col4 = st.columns(4)
+                            with col1:
+                                st.metric("Opening", f"{day_summary['opening_price']:.4f}")
+                            with col2:
+                                st.metric("High", f"{day_summary['high_price']:.4f}")
+                            with col3:
+                                st.metric("Low", f"{day_summary['low_price']:.4f}")
+                            with col4:
+                                st.metric("Closing", f"{day_summary['closing_price']:.4f}")
+                            
+                            # 5-minute chart
+                            day_predictions = intraday_data[selected_day]['predictions']
+                            df_intraday = pd.DataFrame(day_predictions)
+                            
+                            # Create intraday chart
+                            fig_intraday = go.Figure()
+                            
+                            # Add price line
+                            fig_intraday.add_trace(go.Scatter(
+                                x=df_intraday['time'],
+                                y=df_intraday['predicted_price'],
+                                mode='lines',
+                                name='5-Min Price',
+                                line=dict(color='blue', width=2),
+                                hovertemplate='Time: %{x}<br>Price: %{y:.4f}<extra></extra>'
+                            ))
+                            
+                            # Add high and low markers
+                            high_idx = df_intraday['predicted_price'].idxmax()
+                            low_idx = df_intraday['predicted_price'].idxmin()
+                            
+                            fig_intraday.add_trace(go.Scatter(
+                                x=[df_intraday.iloc[high_idx]['time']],
+                                y=[df_intraday.iloc[high_idx]['predicted_price']],
+                                mode='markers',
+                                name='Day High',
+                                marker=dict(color='green', size=12, symbol='triangle-up')
+                            ))
+                            
+                            fig_intraday.add_trace(go.Scatter(
+                                x=[df_intraday.iloc[low_idx]['time']],
+                                y=[df_intraday.iloc[low_idx]['predicted_price']],
+                                mode='markers',
+                                name='Day Low',
+                                marker=dict(color='red', size=12, symbol='triangle-down')
+                            ))
+                            
+                            fig_intraday.update_layout(
+                                title=f"{brand_name} - Intraday 5-Minute Predictions ({selected_day})",
+                                xaxis_title="Time",
+                                yaxis_title="Price",
+                                height=500,
+                                xaxis=dict(tickangle=45),
+                                showlegend=True
+                            )
+                            
+                            st.plotly_chart(fig_intraday, use_container_width=True)
+                            
+                            # Show data table (limited to avoid clutter)
+                            st.subheader("📋 5-Minute Interval Data (Every 30 minutes)")
+                            # Show every 6th row (30-minute intervals)
+                            df_sample = df_intraday.iloc[::6].copy()
+                            st.dataframe(df_sample[['time', 'predicted_price', 'change_from_prev']], use_container_width=True)
+                        
+                        with pred_tab3:
+                            st.markdown("**📆 Medium-term Predictions (Next 4 Weeks)**")
+                            medium_term = predictions['predictions']['medium_term']
+                            
+                            df_medium = pd.DataFrame(medium_term)
+                            st.dataframe(df_medium, use_container_width=True)
+                            
+                            # Create medium-term chart
+                            fig_medium = go.Figure()
+                            fig_medium.add_trace(go.Scatter(
+                                x=df_medium['date'],
+                                y=df_medium['predicted_price'],
+                                mode='lines+markers',
+                                name='Medium-term Predictions',
+                                line=dict(color='orange', width=3),
+                                marker=dict(size=8)
+                            ))
+                            
+                            fig_medium.update_layout(
+                                title=f"{brand_name} - Medium-term Predictions (4 Weeks)",
+                                xaxis_title="Date",
+                                yaxis_title="Price",
+                                height=400
+                            )
+                            
+                            st.plotly_chart(fig_medium, use_container_width=True)
+                        
+                        with pred_tab4:
+                            st.markdown("**📊 Long-term Predictions (Next 3 Months)**")
+                            long_term = predictions['predictions']['long_term']
+                            
+                            df_long = pd.DataFrame(long_term)
+                            st.dataframe(df_long, use_container_width=True)
+                            
+                            # Create long-term chart
+                            fig_long = go.Figure()
+                            fig_long.add_trace(go.Scatter(
+                                x=df_long['date'],
+                                y=df_long['predicted_price'],
+                                mode='lines+markers',
+                                name='Long-term Predictions',
+                                line=dict(color='purple', width=3),
+                                marker=dict(size=8)
+                            ))
+                            
+                            fig_long.update_layout(
+                                title=f"{brand_name} - Long-term Predictions (3 Months)",
+                                xaxis_title="Date",
+                                yaxis_title="Price",
+                                height=400
+                            )
+                            
+                            st.plotly_chart(fig_long, use_container_width=True)
+                        
+                        with pred_tab5:
+                            st.markdown("**🔧 Technical Analysis**")
+                            tech_analysis = predictions['technical_analysis']
+                            
+                            if 'error' not in tech_analysis:
+                                col1, col2 = st.columns(2)
+                                
+                                with col1:
+                                    st.subheader("Moving Averages")
+                                    ma_data = tech_analysis['moving_averages']
+                                    if ma_data['ma_5']:
+                                        st.metric("MA-5", f"{ma_data['ma_5']:.4f}")
+                                    if ma_data['ma_10']:
+                                        st.metric("MA-10", f"{ma_data['ma_10']:.4f}")
+                                    if ma_data['ma_20']:
+                                        st.metric("MA-20", f"{ma_data['ma_20']:.4f}")
+                                
+                                with col2:
+                                    st.subheader("Key Levels")
+                                    st.metric("RSI", f"{tech_analysis['rsi']:.2f}")
+                                    st.metric("Support", f"{tech_analysis['support_level']:.4f}")
+                                    st.metric("Resistance", f"{tech_analysis['resistance_level']:.4f}")
+                            else:
+                                st.error(tech_analysis['error'])
+                else:
+                    st.error("Please select a price column")
+        
+        except Exception as e:
+            st.error(f"Error processing file: {str(e)}")
+    else:
+        if not brand_name:
+            st.info("Please enter a brand/instrument name")
+        else:
+            st.info("Please upload a file to get started")
+    
+    # Check if manual processing was successful
+    if 'manual_df' in st.session_state and 'manual_brand' in st.session_state:
+        st.markdown("---")
+        st.subheader("🔮 Generate Predictions from Manual Processing")
+        
+        manual_df = st.session_state.manual_df
+        manual_brand = st.session_state.manual_brand
+        
+        st.success(f"Manual processing completed for {manual_brand}! Ready to generate predictions.")
+        
+        # Show column selection for manual processing
+        st.write("**Available columns:**", list(manual_df.columns))
+        
+        col1, col2 = st.columns(2)
+        
+        with col1:
+            price_column = st.selectbox("Select Price Column:", manual_df.columns.tolist(), key="manual_price_col")
+        
+        with col2:
+            date_column = st.selectbox("Select Date Column:", ['None'] + manual_df.columns.tolist(), key="manual_date_col")
+        
+        if st.button("🔮 Generate Predictions from Manual Data", key="manual_predictions"):
+            with st.spinner("Generating predictions from manually processed data..."):
+                try:
+                    # Generate predictions using the manual dataframe
+                    predictions = st.session_state.universal_predictor.generate_predictions(
+                        manual_df, manual_brand, price_column, 
+                        date_column if date_column != 'None' else None
+                    )
+                    
+                    if 'error' in predictions:
+                        st.error(predictions['error'])
+                    else:
+                        # Display prediction results
+                        st.subheader(f"🔮 Prediction Results for {manual_brand}")
+                        
+                        # Current statistics
+                        col1, col2, col3, col4 = st.columns(4)
+                        
+                        with col1:
+                            st.metric("Current Price", f"{predictions['current_price']:.4f}")
+                        
+                        with col2:
+                            volatility = predictions['volatility'] * 100
+                            st.metric("Volatility", f"{volatility:.2f}%")
+                        
+                        with col3:
+                            trend = predictions['trend'] * 100
+                            st.metric("Trend", f"{trend:+.2f}%")
+                        
+                        with col4:
+                            st.metric("Data Points", predictions['data_points'])
+                        
+                        # Show short-term predictions
+                        st.subheader("📅 Short-term Predictions (Next 7 Days)")
+                        short_term = predictions['predictions']['short_term']
+                        df_short = pd.DataFrame(short_term)
+                        st.dataframe(df_short, use_container_width=True)
+                        
+                        # Create prediction chart
+                        fig = go.Figure()
+                        fig.add_trace(go.Scatter(
+                            x=df_short['date'],
+                            y=df_short['predicted_price'],
+                            mode='lines+markers',
+                            name='Predicted Price',
+                            line=dict(color='red', width=3),
+                            marker=dict(size=8)
+                        ))
+                        
+                        fig.update_layout(
+                            title=f"{manual_brand} - Short-term Predictions",
+                            xaxis_title="Date",
+                            yaxis_title="Price",
+                            height=400
+                        )
+                        
+                        st.plotly_chart(fig, use_container_width=True)
+                        
+                        # Clear manual processing data
+                        del st.session_state.manual_df
+                        del st.session_state.manual_brand
+                        
+                except Exception as e:
+                    st.error(f"Error generating predictions: {str(e)}")
 
 def display_news_based_predictions():
     """Display news-based market predictions"""
