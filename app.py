@@ -135,6 +135,79 @@ def main():
                 list(companies.keys()),
                 key="selected_company"
             )
+        
+        # Debug section for file upload issues
+        if analysis_type == "📁 Universal File Upload":
+            with st.expander("🧪 Quick File Upload Test", expanded=False):
+                st.markdown("### Test Your File Upload Here")
+                debug_file = st.file_uploader("Upload test file (for debugging)", type=['csv', 'xlsx', 'xls'], key="debug_uploader")
+                
+                if debug_file is not None:
+                    st.success("File uploaded successfully!")
+                    st.write(f"**File name:** {debug_file.name}")
+                    st.write(f"**File size:** {debug_file.size} bytes")
+                    st.write(f"**File type:** {debug_file.type}")
+                    
+                    try:
+                        # Test 1: Read raw content
+                        debug_file.seek(0)
+                        raw_content = debug_file.read()
+                        st.write(f"**Raw content length:** {len(raw_content)} bytes")
+                        
+                        # Test 2: Try to decode
+                        try:
+                            text_content = raw_content.decode('utf-8')
+                            st.success("✓ UTF-8 decode successful")
+                            
+                            lines = text_content.split('\n')
+                            st.write(f"**Number of lines:** {len(lines)}")
+                            
+                            if lines:
+                                st.write("**First 3 lines:**")
+                                for i, line in enumerate(lines[:3]):
+                                    st.code(f"Line {i+1}: {repr(line)}")
+                            
+                            # Test 3: Try pandas read
+                            debug_file.seek(0)
+                            try:
+                                test_df = pd.read_csv(debug_file)
+                                st.success("✓ Pandas read successful")
+                                st.write(f"**Dataframe shape:** {test_df.shape}")
+                                st.write(f"**Columns:** {list(test_df.columns)}")
+                                st.dataframe(test_df.head(3))
+                                
+                                st.success("Your file is perfectly readable! The issue is likely in the universal predictor logic.")
+                                
+                            except Exception as pandas_error:
+                                st.error(f"✗ Pandas read failed: {str(pandas_error)}")
+                                
+                                # Try alternative methods
+                                st.write("**Trying alternative methods:**")
+                                for delimiter in [',', ';', '\t', '|']:
+                                    try:
+                                        debug_file.seek(0)
+                                        alt_df = pd.read_csv(debug_file, delimiter=delimiter)
+                                        st.success(f"✓ Alternative method with '{delimiter}' delimiter: {alt_df.shape}")
+                                        st.dataframe(alt_df.head(3))
+                                        break
+                                    except Exception as alt_error:
+                                        st.write(f"✗ Delimiter '{delimiter}': {str(alt_error)}")
+                            
+                        except Exception as decode_error:
+                            st.error(f"✗ UTF-8 decode failed: {str(decode_error)}")
+                            
+                            # Try other encodings
+                            st.write("**Trying other encodings:**")
+                            for encoding in ['latin-1', 'cp1252', 'iso-8859-1']:
+                                try:
+                                    alt_content = raw_content.decode(encoding)
+                                    st.success(f"✓ {encoding} decode successful")
+                                    break
+                                except Exception as enc_error:
+                                    st.write(f"✗ {encoding}: {str(enc_error)}")
+                                    
+                    except Exception as e:
+                        st.error(f"**Error processing file:** {str(e)}")
     
     # Main content area
     if analysis_type == "Live Market Dashboard":
