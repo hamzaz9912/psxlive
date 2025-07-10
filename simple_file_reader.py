@@ -110,11 +110,16 @@ def analyze_dataframe(df, brand_name="Unknown"):
     try:
         # Basic statistics
         analysis = {
+            'brand_name': brand_name,
             'total_rows': len(df),
             'total_columns': len(df.columns),
             'columns': list(df.columns),
+            'data_types': {str(k): str(v) for k, v in df.dtypes.to_dict().items()},
             'sample_data': df.head(3).to_dict('records') if len(df) > 0 else [],
-            'brand': brand_name,
+            'has_price_data': False,
+            'has_date_data': False,
+            'price_column': None,
+            'date_column': None,
             'data_range': None
         }
         
@@ -148,9 +153,13 @@ def analyze_dataframe(df, brand_name="Unknown"):
         
         if price_candidates:
             analysis['recommended_price_column'] = price_candidates[0]
+            analysis['price_column'] = price_candidates[0]
+            analysis['has_price_data'] = True
         
         if date_candidates:
             analysis['recommended_date_column'] = date_candidates[0]
+            analysis['date_column'] = date_candidates[0]
+            analysis['has_date_data'] = True
             
             # Calculate date range if date column exists
             try:
