@@ -48,6 +48,10 @@ def read_any_file(uploaded_file):
                     except:
                         return None, "Cannot decode file with any encoding"
             
+            # Remove BOM if present
+            if text_content.startswith('\ufeff'):
+                text_content = text_content[1:]
+            
             # Try different delimiters
             delimiters = [',', ';', '\t', '|']
             
@@ -61,6 +65,20 @@ def read_any_file(uploaded_file):
                     if not df.empty and len(df.columns) > 0:
                         # Check if we have meaningful data (not just one column with everything)
                         if len(df.columns) > 1 or df.iloc[0, 0] != text_content.split('\n')[0]:
+                            # Clean up numeric columns by removing commas and quotes
+                            for col in df.columns:
+                                if df[col].dtype == 'object':
+                                    # Try to clean and convert numeric columns
+                                    try:
+                                        # Remove quotes and commas from potential numeric data
+                                        cleaned_series = df[col].astype(str).str.replace('"', '').str.replace(',', '')
+                                        # Try to convert to numeric
+                                        numeric_series = pd.to_numeric(cleaned_series, errors='coerce')
+                                        # If more than 50% are numeric, replace the column
+                                        if numeric_series.notna().sum() > len(numeric_series) * 0.5:
+                                            df[col] = numeric_series
+                                    except:
+                                        continue
                             return df, None
                 except:
                     continue
@@ -96,7 +114,8 @@ def analyze_dataframe(df, brand_name="Unknown"):
             'total_columns': len(df.columns),
             'columns': list(df.columns),
             'sample_data': df.head(3).to_dict('records') if len(df) > 0 else [],
-            'brand': brand_name
+            'brand': brand_name,
+            'data_range': None
         }
         
         # Try to identify price column
@@ -132,6 +151,21 @@ def analyze_dataframe(df, brand_name="Unknown"):
         
         if date_candidates:
             analysis['recommended_date_column'] = date_candidates[0]
+            
+            # Calculate date range if date column exists
+            try:
+                date_col = date_candidates[0]
+                date_data = pd.to_datetime(df[date_col], errors='coerce')
+                date_data = date_data.dropna()
+                
+                if len(date_data) > 0:
+                    analysis['data_range'] = {
+                        'start': date_data.min().strftime('%Y-%m-%d'),
+                        'end': date_data.max().strftime('%Y-%m-%d'),
+                        'total_days': (date_data.max() - date_data.min()).days
+                    }
+            except Exception as e:
+                analysis['data_range'] = {'error': f'Cannot analyze date data: {str(e)}'}
         
         return analysis
         
