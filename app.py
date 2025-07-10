@@ -2766,57 +2766,208 @@ def display_universal_file_upload():
                             st.metric("Data Points", predictions['data_points'])
                         
                         # Prediction tabs
-                        pred_tab1, pred_tab2, pred_tab3, pred_tab4 = st.tabs([
-                            "📅 Short-term (1-7 days)", 
+                        pred_tab1, pred_tab2, pred_tab3, pred_tab4, pred_tab5 = st.tabs([
+                            "📅 Next 7 Days", 
+                            "⚡ Intraday 5-Min",
                             "📆 Medium-term (1-4 weeks)", 
                             "📊 Long-term (1-3 months)",
                             "🔧 Technical Analysis"
                         ])
                         
                         with pred_tab1:
-                            st.markdown("**Short-term Predictions (Next 7 Days)**")
-                            short_term = predictions['predictions']['short_term']
+                            st.markdown("**📅 Next 7 Days Detailed Predictions**")
+                            next_7_days = predictions['predictions']['next_7_days']
                             
-                            # Display predictions in a table
-                            df_short = pd.DataFrame(short_term)
-                            st.dataframe(df_short, use_container_width=True)
+                            # Display predictions in enhanced table
+                            df_7days = pd.DataFrame(next_7_days)
                             
-                            # Create chart
-                            fig_short = go.Figure()
-                            fig_short.add_trace(go.Scatter(
-                                x=df_short['date'],
-                                y=df_short['predicted_price'],
+                            # Add color coding for trends
+                            def highlight_trend(row):
+                                if row['trend'] == 'Bullish':
+                                    return ['background-color: #90EE90'] * len(row)
+                                elif row['trend'] == 'Bearish':
+                                    return ['background-color: #FFB6C1'] * len(row)
+                                else:
+                                    return ['background-color: #FFFACD'] * len(row)
+                            
+                            styled_df = df_7days.style.apply(highlight_trend, axis=1)
+                            st.dataframe(styled_df, use_container_width=True)
+                            
+                            # Create enhanced chart
+                            fig_7days = go.Figure()
+                            
+                            # Add current price line
+                            fig_7days.add_hline(
+                                y=predictions['current_price'], 
+                                line_dash="dot", 
+                                line_color="blue",
+                                annotation_text=f"Current: {predictions['current_price']:.4f}"
+                            )
+                            
+                            # Add predictions
+                            fig_7days.add_trace(go.Scatter(
+                                x=df_7days['date'],
+                                y=df_7days['predicted_price'],
                                 mode='lines+markers',
-                                name='Predicted Price',
+                                name='7-Day Predictions',
                                 line=dict(color='red', width=3),
+                                marker=dict(size=10, color=df_7days['confidence'], 
+                                          colorscale='RdYlGn', showscale=True, 
+                                          colorbar=dict(title="Confidence"))
+                            ))
+                            
+                            fig_7days.update_layout(
+                                title=f"{brand_name} - Next 7 Days Predictions",
+                                xaxis_title="Date",
+                                yaxis_title="Price",
+                                height=500,
+                                showlegend=True
+                            )
+                            
+                            st.plotly_chart(fig_7days, use_container_width=True)
+                        
+                        with pred_tab2:
+                            st.markdown("**⚡ Intraday 5-Minute Predictions with Day Selection**")
+                            
+                            intraday_data = predictions['predictions']['intraday_5min']
+                            available_days = list(intraday_data.keys())
+                            
+                            # Day selection
+                            col1, col2 = st.columns([2, 1])
+                            with col1:
+                                selected_day = st.selectbox(
+                                    "Select Trading Day for Intraday Analysis:",
+                                    available_days,
+                                    format_func=lambda x: f"{x} ({intraday_data[x]['day_name']})"
+                                )
+                            
+                            with col2:
+                                day_summary = intraday_data[selected_day]['day_summary']
+                                st.metric("Daily Change", f"{day_summary['daily_change']:+.2f}%")
+                            
+                            # Display day summary
+                            st.subheader(f"📊 {selected_day} Trading Session Summary")
+                            
+                            col1, col2, col3, col4 = st.columns(4)
+                            with col1:
+                                st.metric("Opening", f"{day_summary['opening_price']:.4f}")
+                            with col2:
+                                st.metric("High", f"{day_summary['high_price']:.4f}")
+                            with col3:
+                                st.metric("Low", f"{day_summary['low_price']:.4f}")
+                            with col4:
+                                st.metric("Closing", f"{day_summary['closing_price']:.4f}")
+                            
+                            # 5-minute chart
+                            day_predictions = intraday_data[selected_day]['predictions']
+                            df_intraday = pd.DataFrame(day_predictions)
+                            
+                            # Create intraday chart
+                            fig_intraday = go.Figure()
+                            
+                            # Add price line
+                            fig_intraday.add_trace(go.Scatter(
+                                x=df_intraday['time'],
+                                y=df_intraday['predicted_price'],
+                                mode='lines',
+                                name='5-Min Price',
+                                line=dict(color='blue', width=2),
+                                hovertemplate='Time: %{x}<br>Price: %{y:.4f}<extra></extra>'
+                            ))
+                            
+                            # Add high and low markers
+                            high_idx = df_intraday['predicted_price'].idxmax()
+                            low_idx = df_intraday['predicted_price'].idxmin()
+                            
+                            fig_intraday.add_trace(go.Scatter(
+                                x=[df_intraday.iloc[high_idx]['time']],
+                                y=[df_intraday.iloc[high_idx]['predicted_price']],
+                                mode='markers',
+                                name='Day High',
+                                marker=dict(color='green', size=12, symbol='triangle-up')
+                            ))
+                            
+                            fig_intraday.add_trace(go.Scatter(
+                                x=[df_intraday.iloc[low_idx]['time']],
+                                y=[df_intraday.iloc[low_idx]['predicted_price']],
+                                mode='markers',
+                                name='Day Low',
+                                marker=dict(color='red', size=12, symbol='triangle-down')
+                            ))
+                            
+                            fig_intraday.update_layout(
+                                title=f"{brand_name} - Intraday 5-Minute Predictions ({selected_day})",
+                                xaxis_title="Time",
+                                yaxis_title="Price",
+                                height=500,
+                                xaxis=dict(tickangle=45),
+                                showlegend=True
+                            )
+                            
+                            st.plotly_chart(fig_intraday, use_container_width=True)
+                            
+                            # Show data table (limited to avoid clutter)
+                            st.subheader("📋 5-Minute Interval Data (Every 30 minutes)")
+                            # Show every 6th row (30-minute intervals)
+                            df_sample = df_intraday.iloc[::6].copy()
+                            st.dataframe(df_sample[['time', 'predicted_price', 'change_from_prev']], use_container_width=True)
+                        
+                        with pred_tab3:
+                            st.markdown("**📆 Medium-term Predictions (Next 4 Weeks)**")
+                            medium_term = predictions['predictions']['medium_term']
+                            
+                            df_medium = pd.DataFrame(medium_term)
+                            st.dataframe(df_medium, use_container_width=True)
+                            
+                            # Create medium-term chart
+                            fig_medium = go.Figure()
+                            fig_medium.add_trace(go.Scatter(
+                                x=df_medium['date'],
+                                y=df_medium['predicted_price'],
+                                mode='lines+markers',
+                                name='Medium-term Predictions',
+                                line=dict(color='orange', width=3),
                                 marker=dict(size=8)
                             ))
                             
-                            fig_short.update_layout(
-                                title=f"{brand_name} - Short-term Predictions",
+                            fig_medium.update_layout(
+                                title=f"{brand_name} - Medium-term Predictions (4 Weeks)",
                                 xaxis_title="Date",
                                 yaxis_title="Price",
                                 height=400
                             )
                             
-                            st.plotly_chart(fig_short, use_container_width=True)
+                            st.plotly_chart(fig_medium, use_container_width=True)
                         
-                        with pred_tab2:
-                            st.markdown("**Medium-term Predictions (Next 4 Weeks)**")
-                            medium_term = predictions['predictions']['medium_term']
-                            
-                            df_medium = pd.DataFrame(medium_term)
-                            st.dataframe(df_medium, use_container_width=True)
-                        
-                        with pred_tab3:
-                            st.markdown("**Long-term Predictions (Next 3 Months)**")
+                        with pred_tab4:
+                            st.markdown("**📊 Long-term Predictions (Next 3 Months)**")
                             long_term = predictions['predictions']['long_term']
                             
                             df_long = pd.DataFrame(long_term)
                             st.dataframe(df_long, use_container_width=True)
+                            
+                            # Create long-term chart
+                            fig_long = go.Figure()
+                            fig_long.add_trace(go.Scatter(
+                                x=df_long['date'],
+                                y=df_long['predicted_price'],
+                                mode='lines+markers',
+                                name='Long-term Predictions',
+                                line=dict(color='purple', width=3),
+                                marker=dict(size=8)
+                            ))
+                            
+                            fig_long.update_layout(
+                                title=f"{brand_name} - Long-term Predictions (3 Months)",
+                                xaxis_title="Date",
+                                yaxis_title="Price",
+                                height=400
+                            )
+                            
+                            st.plotly_chart(fig_long, use_container_width=True)
                         
-                        with pred_tab4:
-                            st.markdown("**Technical Analysis**")
+                        with pred_tab5:
+                            st.markdown("**🔧 Technical Analysis**")
                             tech_analysis = predictions['technical_analysis']
                             
                             if 'error' not in tech_analysis:

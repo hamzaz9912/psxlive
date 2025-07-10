@@ -61,10 +61,19 @@ class UniversalPredictor:
             except Exception as e:
                 return {'error': f'Cannot convert price column to numeric: {str(e)}'}
             
-            # Get current price and basic statistics
-            current_price = float(price_data.iloc[-1])
-            volatility = float(price_data.pct_change().std())
+            # Get current price from FIRST ROW (most recent data)
+            current_price = float(price_data.iloc[0])  # Use first row instead of last
+            volatility = float(price_data.pct_change().std()) if len(price_data) > 1 else 0.02
             trend = float((price_data.iloc[-1] - price_data.iloc[0]) / price_data.iloc[0]) if len(price_data) > 1 else 0.0
+            
+            # Process date column if available
+            date_data = None
+            if date_column and date_column in df.columns:
+                try:
+                    date_data = pd.to_datetime(df[date_column], errors='coerce')
+                    date_data = date_data.dropna()
+                except:
+                    date_data = None
             
             # Generate predictions
             predictions = {
@@ -72,7 +81,13 @@ class UniversalPredictor:
                 'volatility': volatility,
                 'trend': trend,
                 'data_points': len(price_data),
+                'historical_data': {
+                    'prices': price_data.tolist(),
+                    'dates': date_data.dt.strftime('%Y-%m-%d').tolist() if date_data is not None else []
+                },
                 'predictions': {
+                    'next_7_days': self._generate_next_7_days_prediction(current_price, trend, volatility, brand_name),
+                    'intraday_5min': self._generate_intraday_5min_prediction(current_price, volatility, brand_name),
                     'short_term': self._generate_short_term_prediction(current_price, trend, volatility, brand_name),
                     'medium_term': self._generate_medium_term_prediction(current_price, trend, volatility, brand_name),
                     'long_term': self._generate_long_term_prediction(current_price, trend, volatility, brand_name)
@@ -139,6 +154,90 @@ class UniversalPredictor:
             })
             
             current_price = predicted_price
+        
+        return predictions
+    
+    def _generate_next_7_days_prediction(self, current_price, trend, volatility, brand_name):
+        """Generate next 7 days specific predictions with detailed analysis"""
+        predictions = []
+        working_price = current_price
+        
+        for i in range(1, 8):  # Next 7 days
+            # Enhanced prediction model with trend and volatility
+            daily_trend = trend * 0.1  # Daily trend component
+            daily_volatility = np.random.normal(0, volatility * 0.05)  # Daily volatility
+            market_sentiment = np.random.uniform(-0.02, 0.02)  # Random market sentiment
+            
+            daily_change = daily_trend + daily_volatility + market_sentiment
+            predicted_price = working_price * (1 + daily_change)
+            
+            # Calculate confidence based on volatility
+            confidence = max(0.6, 1 - abs(daily_change * 10))
+            
+            predictions.append({
+                'day': i,
+                'date': (datetime.now() + timedelta(days=i)).strftime('%Y-%m-%d'),
+                'predicted_price': round(predicted_price, 4),
+                'change_from_current': round(((predicted_price - current_price) / current_price) * 100, 2),
+                'daily_change': round(daily_change * 100, 2),
+                'confidence': round(confidence, 2),
+                'trend': 'Bullish' if daily_change > 0 else 'Bearish' if daily_change < -0.005 else 'Neutral'
+            })
+            
+            working_price = predicted_price
+        
+        return predictions
+    
+    def _generate_intraday_5min_prediction(self, current_price, volatility, brand_name):
+        """Generate intraday 5-minute predictions for selected trading day"""
+        predictions = {}
+        
+        # Generate predictions for next 3 days
+        for day_offset in range(3):
+            day_predictions = []
+            target_date = datetime.now() + timedelta(days=day_offset)
+            day_key = target_date.strftime('%Y-%m-%d')
+            
+            # Trading session from 9:30 AM to 3:30 PM (6 hours = 72 intervals of 5 minutes)
+            session_start = target_date.replace(hour=9, minute=30, second=0, microsecond=0)
+            working_price = current_price
+            
+            # Add small daily adjustment
+            daily_adjustment = np.random.uniform(-0.01, 0.01)
+            working_price = working_price * (1 + daily_adjustment)
+            
+            for interval in range(72):  # 72 intervals of 5 minutes = 6 hours
+                timestamp = session_start + timedelta(minutes=interval * 5)
+                
+                # 5-minute price movement (smaller volatility)
+                interval_change = np.random.normal(0, volatility * 0.01)  # Very small 5-min changes
+                predicted_price = working_price * (1 + interval_change)
+                
+                day_predictions.append({
+                    'time': timestamp.strftime('%H:%M'),
+                    'datetime': timestamp.strftime('%Y-%m-%d %H:%M'),
+                    'predicted_price': round(predicted_price, 4),
+                    'change_from_prev': round(((predicted_price - working_price) / working_price) * 100, 3),
+                    'volume_indicator': np.random.randint(1000, 10000)  # Simulated volume
+                })
+                
+                working_price = predicted_price
+            
+            predictions[day_key] = {
+                'date': day_key,
+                'day_name': target_date.strftime('%A'),
+                'session_start': '09:30',
+                'session_end': '15:30',
+                'total_intervals': len(day_predictions),
+                'predictions': day_predictions,
+                'day_summary': {
+                    'opening_price': day_predictions[0]['predicted_price'],
+                    'closing_price': day_predictions[-1]['predicted_price'],
+                    'high_price': max(p['predicted_price'] for p in day_predictions),
+                    'low_price': min(p['predicted_price'] for p in day_predictions),
+                    'daily_change': round(((day_predictions[-1]['predicted_price'] - day_predictions[0]['predicted_price']) / day_predictions[0]['predicted_price']) * 100, 2)
+                }
+            }
         
         return predictions
     

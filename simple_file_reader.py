@@ -138,15 +138,23 @@ def analyze_dataframe(df, brand_name="Unknown"):
             if any(word in col_lower for word in ['date', 'time', 'datetime', 'timestamp']):
                 date_candidates.append(col)
         
-        # If no obvious candidates, check data types
+        # If no obvious candidates, check data types and use first numeric column
         if not price_candidates:
             for col in df.columns:
                 try:
                     # Try to convert to numeric
-                    pd.to_numeric(df[col], errors='raise')
-                    price_candidates.append(col)
+                    numeric_data = pd.to_numeric(df[col], errors='coerce')
+                    if numeric_data.notna().sum() > len(numeric_data) * 0.5:  # More than 50% numeric
+                        price_candidates.append(col)
                 except:
                     pass
+        
+        # If still no candidates, use first column with numeric data
+        if not price_candidates:
+            for col in df.columns:
+                if df[col].dtype in ['float64', 'int64'] or any(isinstance(val, (int, float)) for val in df[col].dropna().iloc[:5]):
+                    price_candidates.append(col)
+                    break
         
         analysis['price_candidates'] = price_candidates
         analysis['date_candidates'] = date_candidates
