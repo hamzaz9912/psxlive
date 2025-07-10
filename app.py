@@ -2353,6 +2353,33 @@ def display_universal_file_upload():
     Required columns: Date/Time, Price/Close (or similar naming)
     """)
     
+    # Add sample data download option
+    st.markdown("---")
+    st.subheader("📋 Sample Data")
+    st.markdown("If you're testing the functionality, you can download and use this sample XAUSD data:")
+    
+    if st.button("📥 Download Sample XAUSD Data"):
+        sample_data = """Date,Close,Open,High,Low,Volume
+2025-01-01,2654.32,2650.00,2658.45,2647.23,12500
+2025-01-02,2658.91,2654.32,2662.18,2651.67,15200
+2025-01-03,2651.45,2658.91,2665.30,2649.82,18750
+2025-01-04,2663.78,2651.45,2668.90,2648.12,21300
+2025-01-05,2672.34,2663.78,2675.60,2661.45,16800
+2025-01-06,2668.23,2672.34,2677.89,2664.56,14200
+2025-01-07,2675.89,2668.23,2681.23,2666.78,19500
+2025-01-08,2679.45,2675.89,2683.67,2673.21,17600
+2025-01-09,2681.23,2679.45,2687.90,2676.34,20100
+2025-01-10,2685.67,2681.23,2691.45,2678.90,18900"""
+        
+        st.download_button(
+            label="💾 Download sample_xausd.csv",
+            data=sample_data,
+            file_name="sample_xausd.csv",
+            mime="text/csv"
+        )
+    
+    st.markdown("---")
+    
     # Brand name input
     brand_name = st.text_input("Enter Brand/Instrument Name:", placeholder="e.g., XAUSD, OGDC, EUR/USD, BTC/USD", key="brand_name_input")
     
@@ -2381,12 +2408,36 @@ def display_universal_file_upload():
                         uploaded_file.seek(0)
                         if uploaded_file.name.endswith('.csv'):
                             content = uploaded_file.read().decode('utf-8')
-                            lines = content.split('\n')[:5]
-                            st.write("**First 5 lines of file:**")
+                            lines = content.split('\n')[:10]
+                            st.write("**First 10 lines of file:**")
                             for i, line in enumerate(lines):
-                                st.code(f"Line {i+1}: {line}")
+                                st.code(f"Line {i+1}: {repr(line)}")
+                            
+                            # Show file statistics
+                            st.write(f"**Total lines:** {len(content.split(chr(10)))}")
+                            st.write(f"**Total characters:** {len(content)}")
+                            st.write(f"**Has comma:** {',' in content}")
+                            st.write(f"**Has semicolon:** {';' in content}")
+                            st.write(f"**Has tab:** {chr(9) in content}")
+                            
+                            # Try to detect delimiter
+                            first_line = lines[0] if lines else ""
+                            comma_count = first_line.count(',')
+                            semicolon_count = first_line.count(';')
+                            tab_count = first_line.count('\t')
+                            st.write(f"**First line analysis:** Commas: {comma_count}, Semicolons: {semicolon_count}, Tabs: {tab_count}")
+                            
                         else:
                             st.write("**File content:** (Excel file - cannot display raw content)")
+                            # Try to read Excel for debugging
+                            try:
+                                uploaded_file.seek(0)
+                                test_df = pd.read_excel(uploaded_file)
+                                st.write(f"**Excel file info:** {test_df.shape[0]} rows, {test_df.shape[1]} columns")
+                                if not test_df.empty:
+                                    st.write("**Excel columns:**", list(test_df.columns))
+                            except Exception as excel_e:
+                                st.write(f"**Excel read error:** {str(excel_e)}")
                     except Exception as e:
                         st.write(f"**Cannot read file content:** {str(e)}")
                 

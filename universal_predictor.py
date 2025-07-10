@@ -36,31 +36,97 @@ class UniversalPredictor:
             
             if file_extension == 'csv':
                 # Try different CSV reading approaches
+                error_messages = []
+                df = None
+                
+                # Method 1: Default CSV reading
                 try:
-                    # First try with default settings
-                    df = pd.read_csv(uploaded_file)
-                except Exception as e1:
-                    # Reset file pointer and try with different delimiter
                     uploaded_file.seek(0)
+                    df = pd.read_csv(uploaded_file)
+                    if df.empty or len(df.columns) == 0:
+                        raise ValueError("Empty dataframe or no columns")
+                except Exception as e1:
+                    error_messages.append(f"Default CSV read: {str(e1)}")
+                
+                # Method 2: Try with semicolon delimiter
+                if df is None:
                     try:
-                        df = pd.read_csv(uploaded_file, delimiter=';')
-                    except Exception as e2:
-                        # Reset file pointer and try with different encoding
                         uploaded_file.seek(0)
-                        try:
-                            df = pd.read_csv(uploaded_file, encoding='latin-1')
-                        except Exception as e3:
-                            # Reset file pointer and try with tab delimiter
-                            uploaded_file.seek(0)
-                            try:
-                                df = pd.read_csv(uploaded_file, delimiter='\t')
-                            except Exception as e4:
-                                return {'error': f'Unable to read CSV file. Tried multiple formats. Last error: {str(e4)}'}
+                        df = pd.read_csv(uploaded_file, delimiter=';')
+                        if df.empty or len(df.columns) == 0:
+                            raise ValueError("Empty dataframe or no columns")
+                    except Exception as e2:
+                        error_messages.append(f"Semicolon delimiter: {str(e2)}")
+                
+                # Method 3: Try with tab delimiter
+                if df is None:
+                    try:
+                        uploaded_file.seek(0)
+                        df = pd.read_csv(uploaded_file, delimiter='\t')
+                        if df.empty or len(df.columns) == 0:
+                            raise ValueError("Empty dataframe or no columns")
+                    except Exception as e3:
+                        error_messages.append(f"Tab delimiter: {str(e3)}")
+                
+                # Method 4: Try with different encoding
+                if df is None:
+                    try:
+                        uploaded_file.seek(0)
+                        df = pd.read_csv(uploaded_file, encoding='latin-1')
+                        if df.empty or len(df.columns) == 0:
+                            raise ValueError("Empty dataframe or no columns")
+                    except Exception as e4:
+                        error_messages.append(f"Latin-1 encoding: {str(e4)}")
+                
+                # Method 5: Try with no header
+                if df is None:
+                    try:
+                        uploaded_file.seek(0)
+                        df = pd.read_csv(uploaded_file, header=None)
+                        if df.empty or len(df.columns) == 0:
+                            raise ValueError("Empty dataframe or no columns")
+                        # Add generic column names
+                        df.columns = [f'Column_{i+1}' for i in range(len(df.columns))]
+                    except Exception as e5:
+                        error_messages.append(f"No header: {str(e5)}")
+                
+                # Method 6: Try to read raw content and detect format
+                if df is None:
+                    try:
+                        uploaded_file.seek(0)
+                        content = uploaded_file.read().decode('utf-8')
+                        lines = content.strip().split('\n')
+                        if len(lines) > 0:
+                            # Try to detect delimiter
+                            first_line = lines[0]
+                            if ',' in first_line:
+                                delimiter = ','
+                            elif ';' in first_line:
+                                delimiter = ';'
+                            elif '\t' in first_line:
+                                delimiter = '\t'
+                            else:
+                                delimiter = ','
+                            
+                            # Create StringIO object
+                            from io import StringIO
+                            string_data = StringIO(content)
+                            df = pd.read_csv(string_data, delimiter=delimiter)
+                            
+                            if df.empty or len(df.columns) == 0:
+                                raise ValueError("Empty dataframe or no columns")
+                    except Exception as e6:
+                        error_messages.append(f"Raw content parsing: {str(e6)}")
+                
+                if df is None:
+                    return {'error': f'Unable to read CSV file. Tried multiple methods:\n' + '\n'.join(error_messages)}
                             
             elif file_extension in ['xlsx', 'xls']:
                 # Read Excel file
                 try:
                     df = pd.read_excel(uploaded_file)
+                    if df.empty or len(df.columns) == 0:
+                        return {'error': 'Excel file is empty or has no columns'}
                 except Exception as e:
                     return {'error': f'Unable to read Excel file: {str(e)}'}
             else:
