@@ -2464,9 +2464,24 @@ def display_universal_file_upload():
             # Show file details for debugging
             st.info(f"**File Details:** {uploaded_file.name} ({uploaded_file.size} bytes, type: {uploaded_file.type})")
             
-            # Process uploaded file
+            # Process uploaded file using the new simple file reader
             with st.spinner("Processing uploaded file..."):
-                analysis = st.session_state.universal_predictor.process_uploaded_file(uploaded_file, brand_name)
+                from simple_file_reader import read_any_file, analyze_dataframe
+                
+                # Reset file pointer to beginning
+                uploaded_file.seek(0)
+                
+                # Read the file using simple file reader
+                df, error_message = read_any_file(uploaded_file)
+                
+                if error_message:
+                    analysis = {'error': error_message}
+                else:
+                    # Analyze the dataframe
+                    analysis = analyze_dataframe(df, brand_name)
+                    analysis['data'] = df
+                    analysis['columns'] = df.columns.tolist()
+                    analysis['shape'] = df.shape
             
             if 'error' in analysis:
                 st.error(f"**Processing Error:** {analysis['error']}")
@@ -2640,19 +2655,19 @@ def display_universal_file_upload():
             col1, col2, col3, col4 = st.columns(4)
             
             with col1:
-                st.metric("Total Records", analysis['total_rows'])
+                st.metric("Total Records", analysis['shape'][0])
             
             with col2:
-                st.metric("Columns", analysis['total_columns'])
+                st.metric("Columns", analysis['shape'][1])
             
             with col3:
-                if analysis['data_range'] and 'error' not in analysis['data_range']:
+                if analysis.get('data_range') and 'error' not in str(analysis.get('data_range', '')):
                     st.metric("Date Range", f"{analysis['data_range']['total_days']} days")
                 else:
                     st.metric("Date Range", "N/A")
             
             with col4:
-                if 'price_stats' in analysis and 'error' not in analysis['price_stats']:
+                if analysis.get('price_stats') and 'error' not in str(analysis.get('price_stats', '')):
                     current_price = analysis['price_stats']['current']
                     st.metric("Current Price", f"{current_price:.4f}")
                 else:
@@ -2662,7 +2677,7 @@ def display_universal_file_upload():
             st.subheader("📋 Column Information")
             col_info = []
             for col in analysis['columns']:
-                col_type = str(analysis['data_types'].get(col, 'unknown'))
+                col_type = str(analysis.get('data_types', {}).get(col, 'unknown'))
                 col_info.append({'Column': str(col), 'Type': col_type})
             
             if col_info:
@@ -2680,14 +2695,19 @@ def display_universal_file_upload():
             # Show data preview
             st.subheader("📋 Data Preview")
             try:
-                if analysis['sample_data']:
-                    preview_df = pd.DataFrame(analysis['sample_data'])
-                    st.dataframe(preview_df, use_container_width=True)
+                if 'data' in analysis and isinstance(analysis['data'], pd.DataFrame):
+                    st.dataframe(analysis['data'].head(10), use_container_width=True)
+                elif 'sample_data' in analysis and analysis['sample_data']:
+                    if isinstance(analysis['sample_data'], pd.DataFrame):
+                        st.dataframe(analysis['sample_data'], use_container_width=True)
+                    else:
+                        preview_df = pd.DataFrame(analysis['sample_data'])
+                        st.dataframe(preview_df, use_container_width=True)
                 else:
                     st.warning("No sample data available to preview.")
             except Exception as e:
                 st.error(f"Error displaying preview: {str(e)}")
-                st.write("Raw sample data:", analysis['sample_data'])
+                st.write("Raw sample data type:", type(analysis.get('sample_data', 'None')))
             
             # Column mapping
             st.subheader("🎯 Column Mapping")
@@ -2712,11 +2732,8 @@ def display_universal_file_upload():
             if st.button("🔮 Generate Predictions", key="generate_universal_prediction"):
                 if price_column:
                     with st.spinner("Generating comprehensive predictions..."):
-                        # Read file again for prediction
-                        if uploaded_file.name.endswith('.csv'):
-                            df = pd.read_csv(uploaded_file)
-                        else:
-                            df = pd.read_excel(uploaded_file)
+                        # Use the already loaded dataframe
+                        df = analysis['data']
                         
                         # Generate predictions
                         predictions = st.session_state.universal_predictor.generate_predictions(
