@@ -214,16 +214,28 @@ class DataFetcher:
                 
                 st.success(f"✅ {company_name}: PKR {live_price['price']:.2f} (Source: {source})")
             else:
-                # Show error message when live price is unavailable
-                st.warning(f"❌ Unable to fetch live price for {company_name} ({symbol})")
-                companies_data[company_name] = {
-                    'current_price': None,
-                    'timestamp': datetime.now(),
-                    'source': 'unavailable',
-                    'historical_data': pd.DataFrame(),  # Empty dataframe
-                    'symbol': symbol,
-                    'error': 'Live price data not available from any source'
-                }
+                # Get estimated price based on historical range
+                estimated_price = self._get_estimated_price_for_symbol(symbol)
+                if estimated_price:
+                    st.info(f"📊 {company_name}: PKR {estimated_price:.2f} (Estimated - Live data unavailable)")
+                    companies_data[company_name] = {
+                        'current_price': estimated_price,
+                        'timestamp': datetime.now(),
+                        'source': 'estimated_range_fallback',
+                        'historical_data': pd.DataFrame(),  # Empty dataframe
+                        'symbol': symbol,
+                        'note': 'Live data unavailable - showing estimated price based on historical range'
+                    }
+                else:
+                    st.warning(f"❌ Unable to fetch live price for {company_name} ({symbol})")
+                    companies_data[company_name] = {
+                        'current_price': None,
+                        'timestamp': datetime.now(),
+                        'source': 'unavailable',
+                        'historical_data': pd.DataFrame(),  # Empty dataframe
+                        'symbol': symbol,
+                        'error': 'Live price data not available from any source'
+                    }
                 failed_fetches += 1
             
             # Add small delay to avoid overwhelming servers
@@ -235,28 +247,40 @@ class DataFetcher:
         if companies_data:
             sources_summary = {}
             successful_fetches = 0
+            estimated_fetches = 0
             failed_fetches = 0
             
             for company_name, data in companies_data.items():
                 source = data.get('source', 'unknown')
                 if source == 'unavailable':
                     failed_fetches += 1
+                elif source == 'estimated_range_fallback':
+                    estimated_fetches += 1
+                    if source not in sources_summary:
+                        sources_summary[source] = 0
+                    sources_summary[source] += 1
                 else:
                     successful_fetches += 1
                     if source not in sources_summary:
                         sources_summary[source] = 0
                     sources_summary[source] += 1
             
-            st.success(f"✅ **Live Data Fetching Complete**")
-            st.info(f"📊 **Data Sources Summary:** {successful_fetches} successful, {failed_fetches} failed")
+            st.success(f"✅ **KSE-100 Data Fetching Complete**")
+            st.info(f"📊 **Data Summary:** {successful_fetches} live prices, {estimated_fetches} estimated prices, {failed_fetches} unavailable")
             
             if sources_summary:
-                st.write("**Authentic Data Sources Used:**")
+                st.write("**Data Sources Used:**")
                 for source, count in sources_summary.items():
-                    st.write(f"  • {source}: {count} companies")
+                    if source == 'estimated_range_fallback':
+                        st.write(f"  • 📊 Estimated based on historical range: {count} companies")
+                    else:
+                        st.write(f"  • ✅ {source}: {count} companies")
             
             if failed_fetches > 0:
-                st.warning(f"⚠️ {failed_fetches} companies could not be fetched from live sources. Consider checking data provider availability.")
+                st.warning(f"⚠️ {failed_fetches} companies could not be processed. Consider checking data provider availability.")
+            
+            if estimated_fetches > 0:
+                st.info(f"📊 {estimated_fetches} companies showing estimated prices based on historical ranges when live data is unavailable.")
         
         return companies_data
     

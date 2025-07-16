@@ -922,14 +922,78 @@ def display_intraday_sessions_analysis(forecast_type, days_ahead, custom_date):
 def display_all_companies_live_prices():
     """Display live prices for all KSE-100 companies with sector-wise organization"""
     
-    st.subheader("📊 All KSE-100 Companies - Live Prices")
-    st.markdown("Real-time prices for all companies listed in KSE-100 index, organized by sectors")
+    st.subheader("📊 All KSE-100 Companies - Complete Brand Data")
+    st.markdown("Comprehensive brand data for all companies listed in KSE-100 index with live prices and estimated ranges")
+    
+    # Add refresh button
+    col1, col2 = st.columns([1, 4])
+    with col1:
+        if st.button("🔄 Refresh All Data", use_container_width=True):
+            st.rerun()
     
     # Fetch all companies data
-    with st.spinner("Fetching live prices for all companies..."):
+    with st.spinner("Fetching comprehensive brand data for all KSE-100 companies..."):
         companies_data = st.session_state.data_fetcher.fetch_all_companies_live_data()
     
     if companies_data:
+        # Create comprehensive overview table
+        st.subheader("📊 Complete KSE-100 Brand Data Overview")
+        
+        # Prepare data for overview table
+        overview_data = []
+        for company_name, data in companies_data.items():
+            current_price = data.get('current_price', 0)
+            source = data.get('source', 'unknown')
+            symbol = data.get('symbol', 'N/A')
+            
+            # Format price display
+            if current_price and current_price > 0:
+                price_display = f"PKR {current_price:,.2f}"
+            else:
+                price_display = "N/A"
+            
+            # Format source display
+            if source == 'estimated_range_fallback':
+                source_display = "📊 Estimated"
+            elif source == 'unavailable':
+                source_display = "❌ Unavailable"
+            else:
+                source_display = f"✅ {source}"
+            
+            overview_data.append({
+                'Company': company_name,
+                'Symbol': symbol,
+                'Current Price': price_display,
+                'Data Source': source_display,
+                'Last Updated': data.get('timestamp', datetime.now()).strftime('%H:%M:%S')
+            })
+        
+        # Create DataFrame and display
+        df_overview = pd.DataFrame(overview_data)
+        st.dataframe(df_overview, use_container_width=True, height=400)
+        
+        # Add summary statistics
+        total_companies = len(companies_data)
+        live_data_count = sum(1 for data in companies_data.values() 
+                             if data.get('source') not in ['estimated_range_fallback', 'unavailable'])
+        estimated_count = sum(1 for data in companies_data.values() 
+                             if data.get('source') == 'estimated_range_fallback')
+        unavailable_count = sum(1 for data in companies_data.values() 
+                               if data.get('source') == 'unavailable')
+        
+        # Display summary metrics
+        col1, col2, col3, col4 = st.columns(4)
+        with col1:
+            st.metric("Total Companies", total_companies)
+        with col2:
+            st.metric("Live Data", live_data_count)
+        with col3:
+            st.metric("Estimated Prices", estimated_count)
+        with col4:
+            st.metric("Unavailable", unavailable_count)
+        
+        st.markdown("---")
+        
         # Organize companies by sectors
         sectors = {
             "Oil & Gas": ["Oil & Gas Development Company Limited", "Pakistan Petroleum Limited", 
