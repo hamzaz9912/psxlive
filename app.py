@@ -17,6 +17,7 @@ from enhanced_features import display_enhanced_file_upload
 from news_predictor import get_news_predictor
 from universal_predictor_new import get_universal_predictor
 from file_debug import analyze_uploaded_file, create_manual_dataframe
+from comprehensive_brand_predictor import get_comprehensive_brand_predictor
 
 # Page configuration
 st.set_page_config(
@@ -39,6 +40,8 @@ if 'news_predictor' not in st.session_state:
     st.session_state.news_predictor = get_news_predictor()
 if 'universal_predictor' not in st.session_state:
     st.session_state.universal_predictor = get_universal_predictor()
+if 'brand_predictor' not in st.session_state:
+    st.session_state.brand_predictor = get_comprehensive_brand_predictor()
 if 'last_update' not in st.session_state:
     st.session_state.last_update = None
 if 'kse_data' not in st.session_state:
@@ -96,7 +99,7 @@ def main():
         # Analysis type selection
         analysis_type = st.selectbox(
             "Select Analysis Type",
-            ["Live Market Dashboard", "⚡ 5-Minute Live Predictions", "KSE-100 Index", "Individual Companies", "Advanced Forecasting Hub", "📁 Universal File Upload", "📰 News-Based Predictions", "Enhanced File Upload", "All Companies Live Prices", "Intraday Trading Sessions", "Comprehensive Intraday Forecasts", "Database Overview"],
+            ["Live Market Dashboard", "⚡ 5-Minute Live Predictions", "🔍 Comprehensive Brand Predictions", "KSE-100 Index", "Individual Companies", "Advanced Forecasting Hub", "📁 Universal File Upload", "📰 News-Based Predictions", "Enhanced File Upload", "All Companies Live Prices", "Intraday Trading Sessions", "Comprehensive Intraday Forecasts", "Database Overview"],
             key="analysis_type"
         )
         
@@ -214,6 +217,8 @@ def main():
         display_live_market_dashboard()
     elif analysis_type == "⚡ 5-Minute Live Predictions":
         display_five_minute_live_predictions()
+    elif analysis_type == "🔍 Comprehensive Brand Predictions":
+        st.session_state.brand_predictor.display_comprehensive_brand_predictions()
     elif analysis_type == "KSE-100 Index":
         display_kse100_analysis(forecast_type, days_ahead, custom_date)
     elif analysis_type == "Individual Companies":

@@ -82,7 +82,7 @@ class StockForecaster:
             if days_ahead == 0:
                 return forecast.tail(1)
             else:
-                return forecast.tail(days_ahead)
+                return forecast.tail(int(days_ahead))
                 
         except Exception as e:
             st.error(f"Forecasting failed: {str(e)}")
@@ -199,14 +199,14 @@ class StockForecaster:
             return None
     
     def _create_intraday_future_df(self, model, days_ahead=1):
-        """Create detailed intraday future dataframe with 30-minute intervals"""
+        """Create detailed intraday future dataframe with 5-minute intervals for comprehensive analysis"""
         try:
             today = datetime.now().replace(tzinfo=None).date()
             future_dates = []
             
             # PSX trading hours: 9:30 AM to 3:00 PM
-            # Create 30-minute interval predictions for detailed intraday view
-            for day in range(days_ahead):
+            # Create 5-minute interval predictions for detailed intraday view
+            for day in range(int(days_ahead)):
                 target_date = today + timedelta(days=day)
                 
                 # Start from 9:30 AM
@@ -214,11 +214,11 @@ class StockForecaster:
                 # End at 3:00 PM
                 end_time = datetime.combine(target_date, datetime.min.time().replace(hour=15, minute=0))
                 
-                # Generate 30-minute intervals throughout trading day
+                # Generate 5-minute intervals throughout trading day
                 current_time = start_time
                 while current_time <= end_time:
                     future_dates.append(current_time)
-                    current_time += timedelta(minutes=30)
+                    current_time += timedelta(minutes=5)
             
             return pd.DataFrame({'ds': future_dates})
             
@@ -230,16 +230,14 @@ class StockForecaster:
             for day in range(int(days_ahead)):
                 target_date = today + timedelta(days=day)
                 
-                # Hourly predictions from 9:30 AM to 3:00 PM
-                trading_hours = [
-                    (9, 30), (10, 0), (10, 30), (11, 0), (11, 30), 
-                    (12, 0), (12, 30), (13, 0), (13, 30), (14, 0), 
-                    (14, 30), (15, 0)
-                ]
+                # 5-minute interval predictions from 9:30 AM to 3:00 PM
+                start_time = datetime.combine(target_date, datetime.min.time().replace(hour=9, minute=30))
+                end_time = datetime.combine(target_date, datetime.min.time().replace(hour=15, minute=0))
                 
-                for hour, minute in trading_hours:
-                    dt = datetime.combine(target_date, datetime.min.time().replace(hour=hour, minute=minute))
-                    future_dates.append(dt)
+                current_time = start_time
+                while current_time <= end_time:
+                    future_dates.append(current_time)
+                    current_time += timedelta(minutes=5)
             
             return pd.DataFrame({'ds': future_dates})
     
