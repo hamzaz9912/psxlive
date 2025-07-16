@@ -25,6 +25,95 @@ class AdvancedForecaster:
         self.data_fetcher = DataFetcher()
         self.pkt_timezone = pytz.timezone('Asia/Karachi')
         
+    def generate_simulated_data(self, symbol, days=30):
+        """Generate realistic simulated data for any KSE-100 company"""
+        try:
+            # Base prices for major companies
+            base_prices = {
+                'KSE-100': 132920, 'OGDC': 195, 'LUCK': 1150, 'PSO': 245, 'HBL': 146,
+                'MCB': 276, 'UBL': 195, 'ENGRO': 316, 'FFC': 145, 'MARI': 1950,
+                'TRG': 145, 'BAFL': 351, 'BAHL': 66, 'FFBL': 285, 'KAPCO': 46,
+                'AKBL': 196, 'CHCC': 185, 'DGKC': 126, 'ABOT': 855, 'AGP': 96,
+                'AIRLINK': 146, 'APL': 1250, 'ASTL': 185, 'COLG': 2850, 'EFUG': 245,
+                'FHAM': 185, 'GATM': 26, 'GHGL': 35, 'HABSM': 155, 'HASCOL': 15,
+                'HGFA': 125, 'HUBC': 126, 'JLICL': 485, 'KTMLM': 385, 'LOADS': 16,
+                'MLCF': 65, 'MUGHAL': 85, 'NCPL': 65, 'PACE': 8, 'PAEL': 45,
+                'PIBTL': 12, 'PIOC': 185, 'POWER': 6, 'SAZEW': 15, 'SEARL': 155,
+                'SHEL': 145, 'SNGP': 56, 'SSGC': 23, 'TOMCL': 36, 'TPLP': 16,
+                'UNITY': 35, 'WTL': 2, 'YOUW': 3, 'ZAHID': 485, 'MEBL': 196,
+                'NBP': 48, 'SCBPL': 285, 'FABL': 65, 'SILK': 1, 'GTYR': 15,
+                'TELE': 2, 'CSAP': 8, 'PRWM': 16, 'PAKT': 25, 'CLCPS': 35,
+                'DAWH': 155, 'EPCL': 45, 'FEROZ': 1, 'FNEL': 16, 'IGIHL': 285,
+                'INDU': 1850, 'JKSM': 95, 'KPUS': 185, 'MUREB': 485, 'NATF': 185,
+                'NESTLE': 6500, 'PNSC': 15, 'PKGS': 485, 'PMPK': 125, 'RMPL': 245,
+                'SAPT': 885, 'SIEM': 685, 'THALL': 485, 'TPPL': 16, 'TMSF': 2,
+                'TREET': 35, 'UPFL': 16, 'WAHN': 2, 'CPPL': 35, 'DFML': 485,
+                'GADT': 35, 'HINOON': 185
+            }
+            
+            # Get base price or use default
+            base_price = base_prices.get(symbol, 100)
+            
+            # Generate date range
+            dates = pd.date_range(end=datetime.now(), periods=days, freq='D')
+            
+            # Create realistic price data with volatility
+            prices = []
+            current_price = base_price
+            
+            for i in range(days):
+                # Add realistic market volatility
+                volatility = np.random.normal(0, 0.02)  # 2% daily volatility
+                
+                # Market trend factor
+                trend_factor = np.sin(i * 0.1) * 0.01  # Cyclical trend
+                
+                # Price change
+                price_change = current_price * (volatility + trend_factor)
+                current_price = max(current_price + price_change, base_price * 0.5)  # Minimum 50% of base
+                
+                # Generate OHLC data
+                high = current_price * (1 + abs(np.random.normal(0, 0.01)))
+                low = current_price * (1 - abs(np.random.normal(0, 0.01)))
+                open_price = current_price * (1 + np.random.normal(0, 0.005))
+                
+                prices.append({
+                    'date': dates[i],
+                    'open': round(open_price, 2),
+                    'high': round(high, 2),
+                    'low': round(low, 2),
+                    'close': round(current_price, 2),
+                    'volume': int(np.random.uniform(50000, 500000))
+                })
+            
+            return pd.DataFrame(prices)
+            
+        except Exception as e:
+            st.error(f"Error generating simulated data: {e}")
+            return pd.DataFrame()
+    
+    def get_data_with_fallback(self, symbol):
+        """Get data with authentic source first, then simulated fallback"""
+        try:
+            # Try authentic data first
+            if symbol == 'KSE-100':
+                data = self.data_fetcher.fetch_kse100_data()
+            else:
+                data = self.data_fetcher.fetch_company_data(symbol)
+            
+            if data is not None and not data.empty:
+                return data, 'authentic'
+            
+            # Fallback to simulated data
+            simulated_data = self.generate_simulated_data(symbol)
+            return simulated_data, 'simulated'
+            
+        except Exception as e:
+            st.warning(f"Data fetching failed for {symbol}: {e}")
+            # Generate simulated data as final fallback
+            simulated_data = self.generate_simulated_data(symbol)
+            return simulated_data, 'simulated'
+        
     def scrape_live_prices_investing_com(self, symbol):
         """Scrape live prices from Investing.com"""
         try:
@@ -366,7 +455,19 @@ def display_advanced_forecasting_dashboard():
         # Brand selection
         col1, col2 = st.columns(2)
         with col1:
-            brands = ['KSE-100', 'OGDC', 'LUCK', 'PSO', 'HBL', 'MCB', 'UBL', 'ENGRO', 'FFC', 'MARI']
+            # Complete KSE-100 companies list
+            brands = [
+                'KSE-100', 'OGDC', 'LUCK', 'PSO', 'HBL', 'MCB', 'UBL', 'ENGRO', 'FFC', 'MARI',
+                'TRG', 'BAFL', 'BAHL', 'FFBL', 'KAPCO', 'AKBL', 'CHCC', 'DGKC', 'ABOT', 'AGP',
+                'AIRLINK', 'APL', 'ASTL', 'COLG', 'EFUG', 'FHAM', 'GATM', 'GHGL', 'HABSM',
+                'HASCOL', 'HGFA', 'HUBC', 'JLICL', 'KTMLM', 'LOADS', 'MLCF', 'MUGHAL', 'NCPL',
+                'PACE', 'PAEL', 'PIBTL', 'PIOC', 'POWER', 'SAZEW', 'SEARL', 'SHEL', 'SNGP',
+                'SSGC', 'TOMCL', 'TPLP', 'UNITY', 'WTL', 'YOUW', 'ZAHID', 'MEBL', 'NBP',
+                'SCBPL', 'FABL', 'SILK', 'GTYR', 'TELE', 'CSAP', 'PRWM', 'PAKT', 'CLCPS',
+                'DAWH', 'EPCL', 'FEROZ', 'FNEL', 'IGIHL', 'INDU', 'JKSM', 'KPUS', 'MUREB',
+                'NATF', 'NESTLE', 'PNSC', 'PKGS', 'PMPK', 'RMPL', 'SAPT', 'SIEM', 'THALL',
+                'TPPL', 'TMSF', 'TREET', 'UPFL', 'WAHN', 'CPPL', 'DFML', 'GADT', 'HINOON'
+            ]
             selected_brand = st.selectbox("Select Brand/Index", brands, key="time_range_brand")
         
         with col2:
@@ -388,51 +489,60 @@ def display_advanced_forecasting_dashboard():
         
         with col1:
             if st.button("🌅 Morning Session (9:30-12:00)", key="morning_session"):
-                st.session_state.start_time = time(9, 30)
-                st.session_state.end_time = time(12, 0)
+                start_time = time(9, 30)
+                end_time = time(12, 0)
+                # Force widget reset by using unique keys
+                st.session_state['time_range_selected'] = 'morning'
                 st.rerun()
         
         with col2:
             if st.button("🌆 Afternoon Session (12:00-15:30)", key="afternoon_session"):
-                st.session_state.start_time = time(12, 0)
-                st.session_state.end_time = time(15, 30)
+                start_time = time(12, 0)
+                end_time = time(15, 30)
+                st.session_state['time_range_selected'] = 'afternoon'
                 st.rerun()
         
         with col3:
             if st.button("📈 Full Day (9:30-15:30)", key="full_day"):
-                st.session_state.start_time = time(9, 30)
-                st.session_state.end_time = time(15, 30)
+                start_time = time(9, 30)
+                end_time = time(15, 30)
+                st.session_state['time_range_selected'] = 'full_day'
                 st.rerun()
         
         # Generate forecast button
         if st.button("🎯 Generate Time Range Forecast", type="primary", key="generate_time_forecast"):
             with st.spinner(f"Generating forecast for {selected_brand} from {start_time} to {end_time}..."):
                 
-                # Initialize data fetcher if not available
-                if 'data_fetcher' not in st.session_state:
-                    from data_fetcher import DataFetcher
-                    st.session_state.data_fetcher = DataFetcher()
+                # Get historical data with fallback
+                historical_data, data_source = forecaster.get_data_with_fallback(selected_brand)
                 
-                # Get historical data
-                try:
-                    if selected_brand == 'KSE-100':
-                        historical_data = st.session_state.data_fetcher.fetch_kse100_data()
-                    else:
-                        historical_data = st.session_state.data_fetcher.fetch_company_data(selected_brand)
-                except Exception as e:
-                    st.error(f"Error fetching data: {e}")
-                    historical_data = None
+                # Show data source information
+                if data_source == 'authentic':
+                    st.success("✅ Using authentic market data")
+                else:
+                    st.info("📊 Using simulated market data (authentic data unavailable)")
                 
                 if historical_data is not None and not historical_data.empty:
                     try:
-                        # Generate time range forecast
-                        forecast_data = forecaster.generate_time_range_forecast(
-                            historical_data, start_time, end_time, selected_brand
+                        # Generate time range forecast using the forecaster
+                        forecast_data = st.session_state.forecaster.forecast_stock(
+                            historical_data, days_ahead=0, forecast_type='intraday'
                         )
                         
                         if forecast_data is not None and not forecast_data.empty:
-                            # Create forecast graph
+                            # Create comprehensive forecast graph
                             fig = go.Figure()
+                            
+                            # Add historical data
+                            historical_recent = historical_data.tail(7)  # Last 7 days
+                            fig.add_trace(go.Scatter(
+                                x=historical_recent['date'],
+                                y=historical_recent['close'],
+                                mode='lines+markers',
+                                name='Historical Prices',
+                                line=dict(color='gray', width=2),
+                                marker=dict(size=6)
+                            ))
                             
                             # Add forecast line
                             fig.add_trace(go.Scatter(
@@ -445,28 +555,28 @@ def display_advanced_forecasting_dashboard():
                             ))
                             
                             # Add confidence interval
-                            fig.add_trace(go.Scatter(
-                                x=list(forecast_data['ds']) + list(forecast_data['ds'][::-1]),
-                                y=list(forecast_data['yhat_upper']) + list(forecast_data['yhat_lower'][::-1]),
-                                fill='toself',
-                                fillcolor='rgba(0,100,80,0.2)',
-                                line=dict(color='rgba(255,255,255,0)'),
-                                name='Confidence Interval',
-                                showlegend=True
-                            ))
+                            if 'yhat_upper' in forecast_data.columns and 'yhat_lower' in forecast_data.columns:
+                                fig.add_trace(go.Scatter(
+                                    x=list(forecast_data['ds']) + list(forecast_data['ds'][::-1]),
+                                    y=list(forecast_data['yhat_upper']) + list(forecast_data['yhat_lower'][::-1]),
+                                    fill='toself',
+                                    fillcolor='rgba(0,100,80,0.2)',
+                                    line=dict(color='rgba(255,255,255,0)'),
+                                    name='Confidence Interval',
+                                    showlegend=True
+                                ))
                             
                             # Add current price marker
-                            live_data = forecaster.get_comprehensive_live_price(selected_brand)
-                            current_time_pkt = datetime.now(forecaster.pkt_timezone)
+                            current_price = historical_data['close'].iloc[-1]
+                            current_time = datetime.now()
                             
-                            if start_time <= current_time_pkt.time() <= end_time:
-                                fig.add_trace(go.Scatter(
-                                    x=[current_time_pkt],
-                                    y=[live_data['price']],
-                                    mode='markers',
-                                    name='Current Price',
-                                    marker=dict(size=15, color='red', symbol='diamond')
-                                ))
+                            fig.add_trace(go.Scatter(
+                                x=[current_time],
+                                y=[current_price],
+                                mode='markers',
+                                name='Current Price',
+                                marker=dict(size=15, color='red', symbol='diamond')
+                            ))
                             
                             fig.update_layout(
                                 title=f"{selected_brand} - Time Range Forecast ({start_time.strftime('%H:%M')} - {end_time.strftime('%H:%M')})",
