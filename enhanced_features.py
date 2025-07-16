@@ -342,63 +342,77 @@ class EnhancedPSXFeatures:
         }
     
     def generate_intraday_forecast(self, historical_data, company):
-        """Generate detailed intraday forecasts with 30-minute intervals"""
+        """Generate detailed intraday forecasts with 30-minute intervals using proper forecasting"""
         try:
-            import random
+            from forecasting import StockForecaster
+            from datetime import datetime, timedelta
             
-            # Create detailed 30-minute predictions for PSX trading hours (9:30 AM - 3:00 PM)
-            trading_times = [
-                '09:30', '10:00', '10:30', '11:00', '11:30', '12:00', 
-                '12:30', '13:00', '13:30', '14:00', '14:30', '15:00'
-            ]
+            # Initialize forecaster
+            forecaster = StockForecaster()
             
+            # Get current price
             current_price = historical_data['Price'].iloc[-1] if 'Price' in historical_data.columns else historical_data['close'].iloc[-1]
             
-            intraday_data = []
-            base_volatility = 0.015  # 1.5% base volatility
+            # Create full day forecast using existing forecaster
+            full_day_forecast = forecaster.forecast_stock(
+                historical_data, days_ahead=0, forecast_type='full_day'
+            )
             
-            # Generate predictions for each 30-minute interval
-            for i, time_str in enumerate(trading_times):
-                # Calculate time-based factors
-                time_factor = 1 - (i / len(trading_times)) * 0.2  # Reduce volatility toward market close
-                
-                # Market opening tends to be more volatile
-                if i < 2:  # First hour (9:30-10:30)
-                    opening_volatility = 1.5
-                elif i >= len(trading_times) - 2:  # Last hour (2:00-3:00)
-                    opening_volatility = 0.8
-                else:
-                    opening_volatility = 1.0
-                
-                volatility = base_volatility * time_factor * opening_volatility
-                
-                # Generate realistic price movement
-                price_change = random.uniform(-volatility, volatility)
-                predicted_price = current_price * (1 + price_change)
-                
-                # Calculate confidence based on volatility and time
-                confidence = max(0.65, min(0.95, 0.85 - abs(price_change) * 8))
-                
-                # Generate high/low estimates for the interval
-                interval_volatility = volatility * 0.5
-                predicted_high = predicted_price * (1 + interval_volatility)
-                predicted_low = predicted_price * (1 - interval_volatility)
-                
-                intraday_data.append({
-                    'time': time_str,
-                    'predicted_price': round(predicted_price, 2),
-                    'predicted_high': round(predicted_high, 2),
-                    'predicted_low': round(predicted_low, 2),
-                    'confidence': round(confidence, 2),
-                    'volume_estimate': int(random.uniform(50000, 200000)),
-                    'price_change': round((predicted_price - current_price), 2),
-                    'change_percent': round(((predicted_price - current_price) / current_price) * 100, 2)
-                })
-                
-                # Use predicted price as base for next interval (trending behavior)
-                current_price = predicted_price
+            if full_day_forecast is None or full_day_forecast.empty:
+                # Fallback to simplified forecast if full_day fails
+                full_day_forecast = forecaster.forecast_stock(
+                    historical_data, days_ahead=1, forecast_type='next_day'
+                )
             
-            return pd.DataFrame(intraday_data)
+            if full_day_forecast is not None and not full_day_forecast.empty:
+                # Create 30-minute intervals from the forecast
+                today = datetime.now().date()
+                trading_times = [
+                    '09:30', '10:00', '10:30', '11:00', '11:30', '12:00', 
+                    '12:30', '13:00', '13:30', '14:00', '14:30', '15:00'
+                ]
+                
+                intraday_data = []
+                
+                # Use forecast data to create realistic intraday predictions
+                for i, time_str in enumerate(trading_times):
+                    # Calculate interpolated values from forecast
+                    time_factor = i / (len(trading_times) - 1)
+                    
+                    if len(full_day_forecast) > 0:
+                        # Use forecast values
+                        forecast_row = full_day_forecast.iloc[min(i, len(full_day_forecast)-1)]
+                        predicted_price = forecast_row['yhat']
+                        predicted_high = forecast_row['yhat_upper']
+                        predicted_low = forecast_row['yhat_lower']
+                        confidence = 0.85 - (abs(predicted_price - current_price) / current_price) * 0.2
+                    else:
+                        # Fallback calculation
+                        variation = (time_factor - 0.5) * 0.02  # ±1% variation
+                        predicted_price = current_price * (1 + variation)
+                        predicted_high = predicted_price * 1.005
+                        predicted_low = predicted_price * 0.995
+                        confidence = 0.75
+                    
+                    # Create time with proper date
+                    time_with_date = datetime.combine(today, datetime.strptime(time_str, '%H:%M').time())
+                    
+                    intraday_data.append({
+                        'time': time_with_date,
+                        'predicted_price': round(predicted_price, 2),
+                        'predicted_high': round(predicted_high, 2),
+                        'predicted_low': round(predicted_low, 2),
+                        'confidence': round(max(0.65, min(0.95, confidence)), 2),
+                        'volume_estimate': int(100000 + (time_factor * 50000)),
+                        'price_change': round((predicted_price - current_price), 2),
+                        'change_percent': round(((predicted_price - current_price) / current_price) * 100, 2)
+                    })
+                
+                return pd.DataFrame(intraday_data)
+            
+            else:
+                # Create empty dataframe if forecasting fails
+                return pd.DataFrame()
         
         except Exception as e:
             st.error(f"Intraday forecast generation failed: {e}")

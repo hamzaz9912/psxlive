@@ -1241,7 +1241,7 @@ class DataFetcher:
         
         # Current accurate PSX market prices (July 2025)
         current_market_prices = {
-            'KSE-100': 132897.26,  # Current PSX KSE-100 index (user provided)
+            'KSE-100': 132920.00,  # Current PSX KSE-100 index (user provided)
             'OGDC': 195.50,        # Oil & Gas Development Company  
             'LUCK': 1150.00,       # Lucky Cement
             'PSO': 245.25,         # Pakistan State Oil
