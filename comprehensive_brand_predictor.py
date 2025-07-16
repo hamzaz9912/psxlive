@@ -107,13 +107,14 @@ class ComprehensiveBrandPredictor:
             marker=dict(color='green', size=10, symbol='circle')
         ))
         
-        # Add forecast data
+        # Add forecast data - LINEAR STYLE
         fig.add_trace(go.Scatter(
             x=forecast['ds'],
             y=forecast['yhat'],
-            mode='lines',
-            name='5-Min Predictions',
-            line=dict(color='red', width=2, dash='dash')
+            mode='lines+markers',
+            name='5-Min Linear Predictions',
+            line=dict(color='red', width=3),
+            marker=dict(size=4, color='red')
         ))
         
         # Add confidence intervals
@@ -137,15 +138,21 @@ class ComprehensiveBrandPredictor:
             hoverinfo='skip'
         ))
         
-        # Update layout
+        # Update layout for LINEAR GRAPH
         fig.update_layout(
-            title=f'{company_name} ({symbol}) - 5-Minute Prediction Analysis',
+            title=dict(
+                text=f'📈 {company_name} ({symbol}) - 5-Minute Linear Prediction Graph',
+                font=dict(size=20, color='#2c3e50'),
+                x=0.5
+            ),
             xaxis_title='Date & Time',
             yaxis_title='Price (PKR)',
             height=600,
             showlegend=True,
             template='plotly_white',
-            hovermode='x unified'
+            hovermode='x unified',
+            plot_bgcolor='rgba(0,0,0,0)',
+            paper_bgcolor='rgba(0,0,0,0)'
         )
         
         return fig

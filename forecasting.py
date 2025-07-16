@@ -72,8 +72,9 @@ class StockForecaster:
                 # For same-day forecasting, predict next few hours/end of day
                 future = model.make_future_dataframe(periods=1, freq='D')
             else:
-                # For multi-day forecasting
-                future = model.make_future_dataframe(periods=int(days_ahead), freq='D')
+                # For multi-day forecasting - ensure days_ahead is integer
+                periods = max(1, int(days_ahead))
+                future = model.make_future_dataframe(periods=periods, freq='D')
             
             # Make predictions
             forecast = model.predict(future)
@@ -82,7 +83,8 @@ class StockForecaster:
             if days_ahead == 0:
                 return forecast.tail(1)
             else:
-                return forecast.tail(int(days_ahead))
+                periods = max(1, int(days_ahead))
+                return forecast.tail(periods)
                 
         except Exception as e:
             st.error(f"Forecasting failed: {str(e)}")

@@ -39,17 +39,15 @@ class ChartVisualizer:
             row_width=[0.7, 0.3]
         )
         
-        # Candlestick chart
+        # Linear price chart (replacing candlestick with linear line)
         fig.add_trace(
-            go.Candlestick(
+            go.Scatter(
                 x=data['date'],
-                open=data['open'],
-                high=data['high'],
-                low=data['low'],
-                close=data['close'],
+                y=data['close'],
+                mode='lines',
                 name="Price",
-                increasing_line_color=self.colors['success'],
-                decreasing_line_color=self.colors['danger']
+                line=dict(color=self.colors['primary'], width=2),
+                hovertemplate='<b>Date:</b> %{x}<br><b>Price:</b> %{y:.2f}<extra></extra>'
             ),
             row=1, col=1
         )
