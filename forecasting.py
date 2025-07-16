@@ -73,7 +73,7 @@ class StockForecaster:
                 future = model.make_future_dataframe(periods=1, freq='D')
             else:
                 # For multi-day forecasting
-                future = model.make_future_dataframe(periods=days_ahead, freq='D')
+                future = model.make_future_dataframe(periods=int(days_ahead), freq='D')
             
             # Make predictions
             forecast = model.predict(future)
@@ -86,7 +86,11 @@ class StockForecaster:
                 
         except Exception as e:
             st.error(f"Forecasting failed: {str(e)}")
-            return None
+            # Try with ensemble approach as fallback
+            try:
+                return self._linear_trend_forecast(historical_data, int(days_ahead))
+            except:
+                return None
     
     def forecast_with_multiple_models(self, historical_data, days_ahead=1):
         """
@@ -223,7 +227,7 @@ class StockForecaster:
             today = datetime.now().replace(tzinfo=None).date()
             future_dates = []
             
-            for day in range(days_ahead):
+            for day in range(int(days_ahead)):
                 target_date = today + timedelta(days=day)
                 
                 # Hourly predictions from 9:30 AM to 3:00 PM
