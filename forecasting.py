@@ -220,7 +220,7 @@ class StockForecaster:
                 current_time = start_time
                 while current_time <= end_time:
                     future_dates.append(current_time)
-                    current_time += timedelta(minutes=5)
+                    current_time = current_time + timedelta(minutes=5)
             
             return pd.DataFrame({'ds': future_dates})
             
@@ -239,7 +239,7 @@ class StockForecaster:
                 current_time = start_time
                 while current_time <= end_time:
                     future_dates.append(current_time)
-                    current_time += timedelta(minutes=5)
+                    current_time = current_time + timedelta(minutes=5)
             
             return pd.DataFrame({'ds': future_dates})
     
@@ -258,7 +258,7 @@ class StockForecaster:
                 current_time = start_time
                 while current_time <= end_time:
                     future_dates.append(current_time)
-                    current_time += timedelta(minutes=30)
+                    current_time = current_time + timedelta(minutes=30)
                     
             elif session == 'afternoon':
                 # Afternoon session: 12:30 PM to 3:30 PM
@@ -269,7 +269,7 @@ class StockForecaster:
                 current_time = start_time
                 while current_time <= end_time:
                     future_dates.append(current_time)
-                    current_time += timedelta(minutes=30)
+                    current_time = current_time + timedelta(minutes=30)
             
             return pd.DataFrame({'ds': future_dates})
             

@@ -344,7 +344,7 @@ class DataFetcher:
         try:
             # Define reasonable price ranges for different symbols
             price_ranges = {
-                'KSE-100': (45000, 50000),  # KSE-100 index range
+                'KSE-100': (128000, 135000),  # KSE-100 index range - updated to current levels
                 'OGDC': (85, 95),           # Oil and Gas Development Company
                 'PPL': (70, 85),            # Pakistan Petroleum Limited
                 'PSO': (165, 180),          # Pakistan State Oil

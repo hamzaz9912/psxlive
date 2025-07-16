@@ -210,9 +210,9 @@ class DatabaseManager:
         from datetime import datetime, timedelta
         import numpy as np
         
-        # Base prices for different symbols
+        # Base prices for different symbols - updated to current market levels
         base_prices = {
-            'KSE-100': 128000,
+            'KSE-100': 132920,  # Updated to current price
             'OGDC': 85,
             'PPL': 75,
             'PSO': 190,
