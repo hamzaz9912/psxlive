@@ -238,13 +238,13 @@ class AdvancedForecaster:
         else:
             return {'price': 100 + np.random.uniform(-20, 20), 'source': 'estimate', 'timestamp': datetime.now()}
     
-    def generate_time_range_forecast(self, historical_data, start_time, end_time, symbol="KSE-100"):
-        """Generate forecast for specific time range (e.g., 9:30 AM - 12:00 PM)"""
+    def generate_time_range_forecast(self, historical_data, start_time, end_time, forecast_date=None, symbol="KSE-100"):
+        """Generate forecast for specific time range on selected date with 5-minute intervals"""
         
-        # Create time range
-        today = datetime.now(self.pkt_timezone).date()
-        start_datetime = datetime.combine(today, start_time)
-        end_datetime = datetime.combine(today, end_time)
+        # Use selected date or today
+        target_date = forecast_date if forecast_date else datetime.now(self.pkt_timezone).date()
+        start_datetime = datetime.combine(target_date, start_time)
+        end_datetime = datetime.combine(target_date, end_time)
         
         # Generate 5-minute intervals
         time_points = []
@@ -524,9 +524,9 @@ def display_advanced_forecasting_dashboard():
                 
                 if historical_data is not None and not historical_data.empty:
                     try:
-                        # Generate time range forecast using the forecaster
-                        forecast_data = st.session_state.forecaster.forecast_stock(
-                            historical_data, days_ahead=0, forecast_type='intraday'
+                        # Generate time range forecast with specific date and time range
+                        forecast_data = forecaster.generate_time_range_forecast(
+                            historical_data, start_time, end_time, forecast_date, selected_brand
                         )
                         
                         if forecast_data is not None and not forecast_data.empty:
@@ -579,12 +579,17 @@ def display_advanced_forecasting_dashboard():
                             ))
                             
                             fig.update_layout(
-                                title=f"{selected_brand} - Time Range Forecast ({start_time.strftime('%H:%M')} - {end_time.strftime('%H:%M')})",
-                                xaxis_title="Time",
+                                title=f"{selected_brand} - 5-Min Interval Forecast ({forecast_date}) {start_time.strftime('%H:%M')} - {end_time.strftime('%H:%M')}",
+                                xaxis_title="Time (5-minute intervals)",
                                 yaxis_title="Price (PKR)",
-                                height=500,
+                                height=600,
                                 showlegend=True,
-                                hovermode='x unified'
+                                hovermode='x unified',
+                                xaxis=dict(
+                                    tickformat='%H:%M',
+                                    tickmode='linear',
+                                    dtick=15*60*1000  # Show tick every 15 minutes
+                                )
                             )
                             
                             st.plotly_chart(fig, use_container_width=True)

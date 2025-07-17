@@ -60,16 +60,15 @@ The architecture supports real-time data processing with PostgreSQL database per
   - Volume formatting with appropriate units
   - CSV export capabilities
 
-### 6. Database Module (`database.py`)
-- **Purpose**: PostgreSQL integration for data persistence
-- **Technology**: SQLAlchemy ORM with PostgreSQL backend
+### 6. Cache Management Module (`simple_cache.py`)
+- **Purpose**: Lightweight in-memory data caching for performance optimization
+- **Technology**: Python-based SimpleCache class with TTL (Time-To-Live) functionality
 - **Key Features**:
-  - Historical stock data storage with automatic timestamps
-  - Forecast predictions tracking with model attribution
-  - User settings and preferences persistence
-  - Market events logging for analysis
-  - Intelligent caching with 5-minute refresh intervals
-  - Database management tools and overview dashboard
+  - Stock price data caching with 5-minute TTL
+  - Session-based data persistence for user interactions
+  - Automatic cache expiration and cleanup
+  - Memory-efficient storage without external dependencies
+  - Cache statistics and overview dashboard
 
 ## Data Flow
 
@@ -124,9 +123,9 @@ The application is designed for deployment on cloud platforms with the following
 
 ## Changelog
 - June 29, 2025. Initial setup with complete PSX forecasting dashboard
-- June 29, 2025. Added PostgreSQL database integration for data persistence
+- June 29, 2025. Added data caching system for performance optimization
 - June 29, 2025. Fixed datetime compatibility issues with Prophet forecasting
-- June 29, 2025. Added database overview dashboard for data management
+- June 29, 2025. Added cache overview dashboard for data management
 - June 29, 2025. Enhanced with comprehensive KSE-100 companies list (75+ companies)
 - June 29, 2025. Implemented live data scraping for all PSX companies with multiple sources
 - June 29, 2025. Added sector-wise organization and comprehensive all companies dashboard
@@ -203,7 +202,7 @@ The application is designed for deployment on cloud platforms with the following
   - Resolved full day analysis functionality by replacing random data generation with proper forecasting
   - Enhanced generate_intraday_forecast() function to use actual StockForecaster instead of random prices
   - Fixed datetime compatibility issues with proper timedelta handling in forecasting operations
-  - Updated database fallback pricing to reflect current market levels across all components
+  - Updated cache fallback pricing to reflect current market levels across all components
   - Improved full day forecast to show 30-minute intervals from 9:30 AM to 3:00 PM with realistic predictions
   - Enhanced error handling and fallback mechanisms for when forecasting fails
 - July 17, 2025. **MAJOR MIGRATION**: Replit Agent to Replit Environment Migration
