@@ -12,7 +12,7 @@ from data_fetcher import DataFetcher
 from forecasting import StockForecaster
 from visualization import ChartVisualizer
 from utils import export_to_csv, format_currency, format_market_status
-from database import get_database_manager
+from simple_cache import get_cache_manager
 from enhanced_features import display_enhanced_file_upload
 from news_predictor import get_news_predictor
 from universal_predictor_new import get_universal_predictor
@@ -34,8 +34,8 @@ if 'forecaster' not in st.session_state:
     st.session_state.forecaster = StockForecaster()
 if 'visualizer' not in st.session_state:
     st.session_state.visualizer = ChartVisualizer()
-if 'db_manager' not in st.session_state:
-    st.session_state.db_manager = get_database_manager()
+if 'cache_manager' not in st.session_state:
+    st.session_state.cache_manager = get_cache_manager()
 if 'news_predictor' not in st.session_state:
     st.session_state.news_predictor = get_news_predictor()
 if 'universal_predictor' not in st.session_state:
@@ -240,7 +240,7 @@ def main():
         from comprehensive_intraday import display_comprehensive_intraday_forecasts
         display_comprehensive_intraday_forecasts()
     else:
-        display_database_overview()
+        display_cache_overview()
 
 def display_kse100_analysis(forecast_type, days_ahead, custom_date):
     """Display KSE-100 index analysis and forecasting"""
@@ -266,26 +266,21 @@ def display_kse100_analysis(forecast_type, days_ahead, custom_date):
         try:
             kse_data = None
             
-            # First try to get recent data from database
-            db_data = st.session_state.db_manager.get_stock_data('KSE-100', days=30)
+            # First try to get recent data from cache
+            cached_data = st.session_state.cache_manager.get_stock_data('KSE-100', days=30)
             
-            # Check if we need fresh data (older than 5 minutes)
+            # Check if we have valid cached data
             need_fresh_data = True
-            if db_data is not None and not db_data.empty:
-                latest_db_date = pd.to_datetime(db_data['date'].max())
-                # Convert both to timezone-naive for comparison
-                current_time = datetime.now().replace(tzinfo=None)
-                latest_db_time = latest_db_date.replace(tzinfo=None)
-                if (current_time - latest_db_time).total_seconds() < 300:  # 5 minutes
-                    need_fresh_data = False
-                    kse_data = db_data
+            if cached_data is not None and not cached_data.empty:
+                need_fresh_data = False
+                kse_data = cached_data
             
             # Fetch fresh data if needed
             if need_fresh_data:
                 kse_data = st.session_state.data_fetcher.fetch_kse100_data()
                 if kse_data is not None and not kse_data.empty:
-                    # Store in database
-                    st.session_state.db_manager.store_stock_data('KSE-100', 'KSE-100 Index', kse_data)
+                    # Store in cache
+                    st.session_state.cache_manager.store_stock_data('KSE-100', 'KSE-100 Index', kse_data)
             
             if kse_data is not None and not kse_data.empty:
                 st.session_state.kse_data = kse_data
@@ -405,26 +400,21 @@ def display_company_analysis(selected_company, forecast_type, days_ahead, custom
             company_data = None
             company_symbol = st.session_state.data_fetcher.get_kse100_companies()[selected_company]
             
-            # First try to get recent data from database
-            db_data = st.session_state.db_manager.get_stock_data(company_symbol, days=30)
+            # First try to get recent data from cache
+            cached_data = st.session_state.cache_manager.get_stock_data(company_symbol, days=30)
             
-            # Check if we need fresh data (older than 5 minutes)
+            # Check if we have valid cached data
             need_fresh_data = True
-            if db_data is not None and not db_data.empty:
-                latest_db_date = pd.to_datetime(db_data['date'].max())
-                # Convert both to timezone-naive for comparison
-                current_time = datetime.now().replace(tzinfo=None)
-                latest_db_time = latest_db_date.replace(tzinfo=None)
-                if (current_time - latest_db_time).total_seconds() < 300:  # 5 minutes
-                    need_fresh_data = False
-                    company_data = db_data
+            if cached_data is not None and not cached_data.empty:
+                need_fresh_data = False
+                company_data = cached_data
             
             # Fetch fresh data if needed
             if need_fresh_data:
                 company_data = st.session_state.data_fetcher.fetch_company_data(selected_company)
                 if company_data is not None and not company_data.empty:
-                    # Store in database
-                    st.session_state.db_manager.store_stock_data(company_symbol, selected_company, company_data)
+                    # Store in cache
+                    st.session_state.cache_manager.store_stock_data(company_symbol, selected_company, company_data)
             
             if company_data is not None and not company_data.empty:
                 st.session_state.companies_data[selected_company] = company_data
@@ -514,112 +504,66 @@ def display_company_analysis(selected_company, forecast_type, days_ahead, custom
         except Exception as e:
             st.error(f"Data fetching error: {str(e)}")
 
-def display_database_overview():
-    """Display database overview and management tools"""
+def display_cache_overview():
+    """Display cache overview and management tools"""
     
-    st.subheader("🗄️ Database Overview")
-    st.markdown("Manage and view stored stock data, forecasts, and system information.")
+    st.subheader("💾 Cache Overview")
+    st.markdown("Manage and view cached stock data and system information.")
     
-    # Database statistics
+    # Cache statistics
     col1, col2, col3 = st.columns(3)
     
+    cache_stats = st.session_state.cache_manager.get_cache_stats()
+    
     with col1:
-        st.metric("Database Status", "Connected ✅")
+        st.metric("Cache Status", "Active ✅")
     
     with col2:
-        # Get market summary from database
-        try:
-            market_data = st.session_state.db_manager.get_market_summary_from_db()
-            st.metric("Stored Symbols", len(market_data))
-        except Exception as e:
-            st.metric("Stored Symbols", "Error")
+        st.metric("Cached Entries", cache_stats['valid_entries'])
     
     with col3:
-        st.metric("Data Source", "PostgreSQL")
+        st.metric("Data Source", "In-Memory Cache")
     
     st.markdown("---")
     
-    # Data management options
-    tab1, tab2, tab3 = st.tabs(["📊 Stored Data", "🔮 Forecast History", "⚙️ Settings"])
+    # Cache management options
+    tab1, tab2 = st.tabs(["📊 Cache Status", "⚙️ Settings"])
     
     with tab1:
-        st.subheader("Historical Stock Data")
+        st.subheader("Cache Information")
         
-        # Show available symbols
-        try:
-            market_data = st.session_state.db_manager.get_market_summary_from_db()
-            if market_data:
-                df_market = pd.DataFrame([
-                    {
-                        'Symbol': symbol,
-                        'Latest Price': f"PKR {data['current_price']:,.2f}",
-                        'Last Updated': data['date'].strftime('%Y-%m-%d %H:%M'),
-                        'Volume': f"{data['volume']:,.0f}"
-                    }
-                    for symbol, data in market_data.items()
-                ])
-                st.dataframe(df_market, use_container_width=True)
-            else:
-                st.info("No historical data found in database. Start by fetching some stock data.")
-        except Exception as e:
-            st.error(f"Error retrieving market data: {str(e)}")
+        # Show cache statistics
+        st.write("**Cache Statistics:**")
+        st.json(cache_stats)
+        
+        # Show cached data summary
+        if st.session_state.kse_data is not None:
+            st.write("**Available Data:**")
+            st.write("- KSE-100 Index data loaded")
+            st.write(f"- Data points: {len(st.session_state.kse_data)}")
+        
+        if st.session_state.companies_data:
+            st.write(f"- Company data cached: {len(st.session_state.companies_data)} companies")
     
     with tab2:
-        st.subheader("Forecast History")
+        st.subheader("Cache Settings")
         
-        # Select symbol for forecast history
-        try:
-            market_data = st.session_state.db_manager.get_market_summary_from_db()
-            if market_data:
-                selected_symbol = st.selectbox(
-                    "Select Symbol for Forecast History",
-                    list(market_data.keys())
-                )
-                
-                if st.button("Load Forecast History"):
-                    forecast_history = st.session_state.db_manager.get_forecast_history(selected_symbol, days=30)
-                    if forecast_history is not None and not forecast_history.empty:
-                        st.dataframe(forecast_history, use_container_width=True)
-                    else:
-                        st.info(f"No forecast history found for {selected_symbol}")
-            else:
-                st.info("No symbols available. Generate some forecasts first.")
-        except Exception as e:
-            st.error(f"Error retrieving forecast history: {str(e)}")
-    
-    with tab3:
-        st.subheader("Database Settings")
-        
-        # Database connection info
-        st.write("**Connection Information:**")
-        try:
-            import os
-            db_host = os.getenv('PGHOST', 'Not set')
-            db_port = os.getenv('PGPORT', 'Not set')
-            db_name = os.getenv('PGDATABASE', 'Not set')
-            
-            st.code(f"""
-Host: {db_host}
-Port: {db_port}
-Database: {db_name}
-            """)
-        except Exception as e:
-            st.error(f"Error retrieving connection info: {str(e)}")
-        
-        # Data management actions
-        st.write("**Data Management:**")
+        # Cache management actions
+        st.write("**Cache Management:**")
         
         col1, col2 = st.columns(2)
         
         with col1:
-            if st.button("🗑️ Clear Old Data", help="Remove data older than 30 days"):
-                # This would implement data cleanup
-                st.info("Data cleanup feature - implementation needed")
+            if st.button("🗑️ Clear Cache", help="Clear all cached data"):
+                st.session_state.cache_manager.clear_cache()
+                st.session_state.kse_data = None
+                st.session_state.companies_data = {}
+                st.success("Cache cleared successfully!")
         
         with col2:
-            if st.button("📊 Database Stats", help="Show detailed database statistics"):
-                # This would show detailed stats
-                st.info("Database statistics feature - implementation needed")
+            if st.button("📊 Refresh Data"):
+                st.session_state.last_update = None
+                st.success("Data refresh triggered!")
 
 def display_intraday_sessions_analysis(forecast_type, days_ahead, custom_date):
     """Display intraday trading sessions analysis with live prices and half-day forecasts"""

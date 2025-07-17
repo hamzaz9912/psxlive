@@ -13,8 +13,7 @@ dependencies = [
     "streamlit>=1.46.1",
     "trafilatura>=2.0.0",
     "pandas>=2.3.0",
-    "psycopg2-binary>=2.9.10",
-    "sqlalchemy>=2.0.41",
+
     "openai>=1.93.0",
     "selenium>=4.34.0",
     "webdriver-manager>=4.0.2",
