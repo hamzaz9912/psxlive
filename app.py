@@ -99,7 +99,7 @@ def main():
         # Analysis type selection
         analysis_type = st.selectbox(
             "Select Analysis Type",
-            ["Live Market Dashboard", "⚡ 5-Minute Live Predictions", "🔍 Comprehensive Brand Predictions", "KSE-100 Index", "Individual Companies", "Advanced Forecasting Hub", "📁 Universal File Upload", "📰 News-Based Predictions", "Enhanced File Upload", "All Companies Live Prices", "Intraday Trading Sessions", "Comprehensive Intraday Forecasts", "Database Overview"],
+            ["Live Market Dashboard", "⚡ 5-Minute Live Predictions", "📊 Advanced Hourly Forecasting", "🔍 Comprehensive Brand Predictions", "KSE-100 Index", "Individual Companies", "Advanced Forecasting Hub", "📁 Universal File Upload", "📰 News-Based Predictions", "Enhanced File Upload", "All Companies Live Prices", "Intraday Trading Sessions", "Comprehensive Intraday Forecasts", "Cache Overview"],
             key="analysis_type"
         )
         
@@ -217,6 +217,9 @@ def main():
         display_live_market_dashboard()
     elif analysis_type == "⚡ 5-Minute Live Predictions":
         display_five_minute_live_predictions()
+    elif analysis_type == "📊 Advanced Hourly Forecasting":
+        from advanced_hourly_forecasting import display_advanced_hourly_forecasting
+        display_advanced_hourly_forecasting()
     elif analysis_type == "🔍 Comprehensive Brand Predictions":
         st.session_state.brand_predictor.display_comprehensive_brand_predictions()
     elif analysis_type == "KSE-100 Index":
