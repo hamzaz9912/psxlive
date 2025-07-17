@@ -246,13 +246,13 @@ class AdvancedForecaster:
         start_datetime = datetime.combine(today, start_time)
         end_datetime = datetime.combine(today, end_time)
         
-        # Generate 15-minute intervals
+        # Generate 5-minute intervals
         time_points = []
         current_time = start_datetime
         
         while current_time <= end_datetime:
             time_points.append(current_time)
-            current_time += timedelta(minutes=15)
+            current_time += timedelta(minutes=5)
         
         # Get current live price
         live_data = self.get_comprehensive_live_price(symbol)
@@ -264,7 +264,7 @@ class AdvancedForecaster:
         
         for i, time_point in enumerate(time_points):
             # Create realistic price movement
-            volatility = 0.005  # 0.5% volatility per 15-min interval
+            volatility = 0.002  # 0.2% volatility per 5-min interval
             trend = np.random.uniform(-0.002, 0.002)  # Slight trend
             noise = np.random.normal(0, volatility)
             
