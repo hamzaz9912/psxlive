@@ -609,7 +609,7 @@ def display_advanced_forecasting_dashboard():
                                 st.metric("Change %", f"{change_percent:+.2f}%")
                             
                             # Data source info
-                            st.info(f"📊 Live price source: {live_data['source']} | Current price: {live_data['price']:,.2f} PKR")
+                            st.info(f"📊 Data source: {data_source} | Current price: {current_price:,.2f} PKR")
                             
                         else:
                             st.error("Unable to generate forecast data. Please try again.")
