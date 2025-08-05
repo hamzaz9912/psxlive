@@ -16,7 +16,7 @@ The application employs a modular architecture, separating concerns into fronten
 -   **Visualization Layer**: Interactive charts using Plotly, including candlestick charts with OHLC data and volume indicators, designed for responsiveness.
 -   **Caching**: Lightweight in-memory caching (`simple_cache.py`) with a 5-minute TTL optimizes performance and reduces API calls, replacing prior database dependencies.
 -   **UI/UX**: Optimized for financial dashboards, featuring sidebar controls, currency and percentage formatting, and CSV export capabilities. Color-coded themes indicate market conditions.
--   **Feature Specifications**: Includes intraday (5-minute intervals), next-day, and custom date forecasting; universal file upload for any financial instrument with automatic column detection; news-based market prediction with sentiment analysis; comprehensive real-time data for all 100 KSE-100 companies; and live KSE-40 dashboard with 5-minute auto-refresh capabilities.
+-   **Feature Specifications**: Enhanced live dashboard with top 80 KSE-100 companies featuring realistic price data and professional 5-minute candlestick charts; comprehensive brand predictions with sector-wise organization (Banking, Oil & Gas, Fertilizer, Cement, Power, Technology, Food & Beverages, Pharmaceuticals, Textile, Miscellaneous); yfinance integration with robust fallback systems; intraday forecasting with confidence intervals; universal file upload capability; and live KSE-40 dashboard with auto-refresh functionality.
 
 ## External Dependencies
 

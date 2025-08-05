@@ -110,7 +110,7 @@ def main():
         # Analysis type selection
         analysis_type = st.selectbox(
             "Select Analysis Type",
-            ["📊 Enhanced Live Dashboard (Top 80 KSE-100)", "🔴 Live KSE-40 (5-Min Updates)", "Live Market Dashboard", "⚡ 5-Minute Live Predictions", "🔍 Comprehensive Brand Predictions", "🏛️ All KSE-100 Companies (Live Prices)", "KSE-100 Index", "Individual Companies", "Advanced Forecasting Hub", "📁 Universal File Upload", "📰 News-Based Predictions", "Enhanced File Upload", "All Companies Live Prices", "Intraday Trading Sessions", "Comprehensive Intraday Forecasts", "Database Overview"],
+            ["📊 Enhanced Live Dashboard (Top 80 KSE-100)", "🔍 Comprehensive Brand Predictions", "🔴 Live KSE-40 (5-Min Updates)", "Live Market Dashboard", "⚡ 5-Minute Live Predictions", "🏛️ All KSE-100 Companies (Live Prices)", "Individual Companies", "Advanced Forecasting Hub", "📁 Universal File Upload", "📰 News-Based Predictions", "Enhanced File Upload", "All Companies Live Prices", "Intraday Trading Sessions", "Comprehensive Intraday Forecasts", "Database Overview"],
             key="analysis_type"
         )
         
