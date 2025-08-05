@@ -1793,6 +1793,10 @@ def display_five_minute_live_predictions():
         # Get live price
         live_price = st.session_state.data_fetcher.get_live_company_price(selected_symbol)
         
+        # Initialize variables with default values
+        current_price = 50000.0  # Default KSE-100 value
+        price_change_pct = 0.0
+        
         if live_price:
             current_price = live_price['price']
             
