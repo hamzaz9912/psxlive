@@ -1793,10 +1793,6 @@ def display_five_minute_live_predictions():
         # Get live price
         live_price = st.session_state.data_fetcher.get_live_company_price(selected_symbol)
         
-        # Initialize variables with default values
-        current_price = 50000.0  # Default KSE-100 value
-        price_change_pct = 0.0
-        
         if live_price:
             current_price = live_price['price']
             
@@ -2036,7 +2032,7 @@ def display_five_minute_live_predictions():
     with col2:
         st.subheader("📈 Prediction Metrics")
         
-        if live_price:
+        if live_price and 'current_price' in locals() and 'price_change_pct' in locals():
             # Next 5-minute prediction
             next_5min = current_price * (1 + (price_change_pct / 100) * 0.05)
             st.metric("Next 5-Min", f"{next_5min:.2f} PKR", f"{next_5min - current_price:+.2f}")
@@ -2053,6 +2049,8 @@ def display_five_minute_live_predictions():
             if market_status['is_market_open']:
                 eod_prediction = current_price * (1 + (price_change_pct / 100) * 0.5)
                 st.metric("End-of-Day", f"{eod_prediction:.2f} PKR", f"{eod_prediction - current_price:+.2f}")
+        else:
+            st.warning("Live price data not available for predictions")
     
     st.markdown("---")
     
@@ -2080,7 +2078,7 @@ def display_five_minute_live_predictions():
             st.info("✅ Morning Session completed")
         
         # Morning session predictions with graph
-        if live_price:
+        if live_price and 'current_price' in locals():
             col1, col2, col3 = st.columns(3)
             with col1:
                 morning_high = current_price * 1.02
@@ -2197,7 +2195,7 @@ def display_five_minute_live_predictions():
             st.info("✅ Afternoon Session completed")
         
         # Afternoon session predictions with graph
-        if live_price:
+        if live_price and 'current_price' in locals():
             col1, col2, col3 = st.columns(3)
             with col1:
                 afternoon_high = current_price * 1.015
