@@ -20,6 +20,7 @@ from file_debug import analyze_uploaded_file, create_manual_dataframe
 from comprehensive_brand_predictor import get_comprehensive_brand_predictor
 from enhanced_psx_fetcher import EnhancedPSXFetcher
 from live_kse40_dashboard import LiveKSE40Dashboard
+from enhanced_live_dashboard import get_enhanced_live_dashboard
 
 # Page configuration
 st.set_page_config(
@@ -56,6 +57,8 @@ if 'all_kse100_data' not in st.session_state:
     st.session_state.all_kse100_data = {}
 if 'live_kse40_dashboard' not in st.session_state:
     st.session_state.live_kse40_dashboard = LiveKSE40Dashboard()
+if 'enhanced_live_dashboard' not in st.session_state:
+    st.session_state.enhanced_live_dashboard = get_enhanced_live_dashboard()
 
 def main():
     st.title("📈 PSX KSE-100 Forecasting Dashboard")
@@ -107,7 +110,7 @@ def main():
         # Analysis type selection
         analysis_type = st.selectbox(
             "Select Analysis Type",
-            ["🔴 Live KSE-40 (5-Min Updates)", "Live Market Dashboard", "⚡ 5-Minute Live Predictions", "🔍 Comprehensive Brand Predictions", "🏛️ All KSE-100 Companies (Live Prices)", "KSE-100 Index", "Individual Companies", "Advanced Forecasting Hub", "📁 Universal File Upload", "📰 News-Based Predictions", "Enhanced File Upload", "All Companies Live Prices", "Intraday Trading Sessions", "Comprehensive Intraday Forecasts", "Database Overview"],
+            ["📊 Enhanced Live Dashboard (Top 80 KSE-100)", "🔴 Live KSE-40 (5-Min Updates)", "Live Market Dashboard", "⚡ 5-Minute Live Predictions", "🔍 Comprehensive Brand Predictions", "🏛️ All KSE-100 Companies (Live Prices)", "KSE-100 Index", "Individual Companies", "Advanced Forecasting Hub", "📁 Universal File Upload", "📰 News-Based Predictions", "Enhanced File Upload", "All Companies Live Prices", "Intraday Trading Sessions", "Comprehensive Intraday Forecasts", "Database Overview"],
             key="analysis_type"
         )
         
@@ -221,7 +224,11 @@ def main():
                         st.error(f"**Error processing file:** {str(e)}")
     
     # Main content area
-    if analysis_type == "🔴 Live KSE-40 (5-Min Updates)":
+    if analysis_type == "📊 Enhanced Live Dashboard (Top 80 KSE-100)":
+        # Enhanced Live Dashboard with top 80 companies
+        st.session_state.enhanced_live_dashboard.display_live_dashboard()
+        
+    elif analysis_type == "🔴 Live KSE-40 (5-Min Updates)":
         st.session_state.live_kse40_dashboard.display_live_dashboard()
     elif analysis_type == "Live Market Dashboard":
         display_live_market_dashboard()

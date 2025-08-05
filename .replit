@@ -3,7 +3,7 @@ run = "streamlit run app.py"
 
 [nix]
 channel = "stable-25_05"
-packages = ["freetype", "geckodriver", "glibcLocales", "lcms2", "libimagequant", "libjpeg", "libtiff", "libwebp", "libxcrypt", "openjpeg", "tcl", "tk", "zlib"]
+packages = ["arrow-cpp", "cacert", "cairo", "cargo", "chromedriver", "cmdstan", "coreutils", "ffmpeg-full", "freetype", "geckodriver", "ghostscript", "glibcLocales", "gmp", "gobject-introspection", "gtk3", "lcms2", "libcxx", "libffi", "libiconv", "libimagequant", "libjpeg", "libtiff", "libwebp", "libxcrypt", "openjpeg", "openssl", "pkg-config", "qhull", "rustc", "sqlite", "tcl", "tk", "xcodebuild", "xsimd", "zeromq", "zlib"]
 
 [deployment]
 deploymentTarget = "autoscale"
