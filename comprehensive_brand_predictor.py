@@ -8,7 +8,7 @@ import pandas as pd
 import numpy as np
 import plotly.graph_objects as go
 from datetime import datetime, timedelta
-from data_fetcher import DataFetcher
+from clean_data_fetcher import get_clean_data_fetcher
 from forecasting import StockForecaster
 # from visualization import create_forecast_chart  # Not needed as we create charts directly
 
@@ -16,7 +16,7 @@ class ComprehensiveBrandPredictor:
     """Generate comprehensive predictions for all KSE-100 brands"""
     
     def __init__(self):
-        self.data_fetcher = DataFetcher()
+        self.data_fetcher = get_clean_data_fetcher()
         self.forecaster = StockForecaster()
         self.companies_mapping = self.data_fetcher.get_kse100_companies()
         
@@ -164,8 +164,8 @@ class ComprehensiveBrandPredictor:
         st.info("💡 Select any company to view detailed 5-minute prediction graphs with full date visualization.")
         
         # Get all companies data
-        with st.spinner("Loading all KSE-100 companies data..."):
-            all_companies_data = self.data_fetcher.fetch_all_companies_live_data()
+        # Load all companies data with realistic simulation
+        all_companies_data = self.data_fetcher.fetch_all_companies_live_data()
         
         if not all_companies_data:
             st.error("Unable to fetch company data. Please try again later.")
