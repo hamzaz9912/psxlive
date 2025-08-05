@@ -17,10 +17,15 @@ class ComprehensiveIntradayForecaster:
     """Enhanced intraday forecasting with multiple prediction types"""
     
     def __init__(self):
-        self.trading_hours = [
-            '09:30', '10:00', '10:30', '11:00', '11:30', '12:00',
-            '12:30', '13:00', '13:30', '14:00', '14:30', '15:00'
-        ]
+        # Generate 5-minute intervals from 9:30 AM to 3:00 PM
+        self.trading_hours = []
+        start_time = datetime.strptime('09:30', '%H:%M')
+        end_time = datetime.strptime('15:00', '%H:%M')
+        current_time = start_time
+        
+        while current_time <= end_time:
+            self.trading_hours.append(current_time.strftime('%H:%M'))
+            current_time += timedelta(minutes=5)
         self.enhanced_features = EnhancedPSXFeatures()
     
     def generate_comprehensive_forecasts(self, historical_data, symbol="KSE-100", live_price=None):
