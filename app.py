@@ -2039,23 +2039,32 @@ def display_five_minute_live_predictions():
     with col2:
         st.subheader("📈 Prediction Metrics")
         
-        if live_price and 'current_price' in locals() and 'price_change_pct' in locals():
-            # Next 5-minute prediction
-            next_5min = current_price * (1 + (price_change_pct / 100) * 0.05)
-            st.metric("Next 5-Min", f"{next_5min:.2f} PKR", f"{next_5min - current_price:+.2f}")
-            
-            # Next 15-minute prediction
-            next_15min = current_price * (1 + (price_change_pct / 100) * 0.15)
-            st.metric("Next 15-Min", f"{next_15min:.2f} PKR", f"{next_15min - current_price:+.2f}")
-            
-            # Next 30-minute prediction
-            next_30min = current_price * (1 + (price_change_pct / 100) * 0.30)
-            st.metric("Next 30-Min", f"{next_30min:.2f} PKR", f"{next_30min - current_price:+.2f}")
-            
-            # End-of-day prediction
-            if market_status['is_market_open']:
-                eod_prediction = current_price * (1 + (price_change_pct / 100) * 0.5)
-                st.metric("End-of-Day", f"{eod_prediction:.2f} PKR", f"{eod_prediction - current_price:+.2f}")
+        if live_price:
+            try:
+                current_price = live_price.get('price', 0)
+                price_change_pct = live_price.get('change_pct', 0)
+                
+                if current_price > 0:
+                    # Next 5-minute prediction
+                    next_5min = current_price * (1 + (price_change_pct / 100) * 0.05)
+                    st.metric("Next 5-Min", f"{next_5min:.2f} PKR", f"{next_5min - current_price:+.2f}")
+                    
+                    # Next 15-minute prediction
+                    next_15min = current_price * (1 + (price_change_pct / 100) * 0.15)
+                    st.metric("Next 15-Min", f"{next_15min:.2f} PKR", f"{next_15min - current_price:+.2f}")
+                    
+                    # Next 30-minute prediction
+                    next_30min = current_price * (1 + (price_change_pct / 100) * 0.30)
+                    st.metric("Next 30-Min", f"{next_30min:.2f} PKR", f"{next_30min - current_price:+.2f}")
+                    
+                    # End-of-day prediction
+                    if market_status['is_market_open']:
+                        eod_prediction = current_price * (1 + (price_change_pct / 100) * 0.5)
+                        st.metric("End-of-Day", f"{eod_prediction:.2f} PKR", f"{eod_prediction - current_price:+.2f}")
+                else:
+                    st.warning("Invalid price data for predictions")
+            except Exception as e:
+                st.warning(f"Error calculating predictions: {str(e)}")
         else:
             st.warning("Live price data not available for predictions")
     
@@ -2514,8 +2523,8 @@ def display_universal_file_upload():
                     # Analyze the dataframe
                     analysis = analyze_dataframe(df, brand_name)
                     analysis['data'] = df
-                    analysis['columns'] = df.columns.tolist()
-                    analysis['shape'] = df.shape
+                    analysis['columns'] = df.columns.tolist() if df is not None else []
+                    analysis['shape'] = df.shape if df is not None else (0, 0)
             
             if 'error' in analysis:
                 st.error(f"**Processing Error:** {analysis['error']}")
@@ -2695,14 +2704,16 @@ def display_universal_file_upload():
                 st.metric("Columns", analysis['shape'][1])
             
             with col3:
-                if analysis.get('data_range') and 'error' not in str(analysis.get('data_range', '')):
-                    st.metric("Date Range", f"{analysis['data_range']['total_days']} days")
+                data_range = analysis.get('data_range')
+                if data_range and isinstance(data_range, dict) and 'total_days' in data_range:
+                    st.metric("Date Range", f"{data_range['total_days']} days")
                 else:
                     st.metric("Date Range", "N/A")
             
             with col4:
-                if analysis.get('price_stats') and 'error' not in str(analysis.get('price_stats', '')):
-                    current_price = analysis['price_stats']['current']
+                price_stats = analysis.get('price_stats')
+                if price_stats and isinstance(price_stats, dict) and 'current' in price_stats:
+                    current_price = price_stats['current']
                     st.metric("Current Price", f"{current_price:.4f}")
                 else:
                     st.metric("Current Price", "N/A")
@@ -2710,8 +2721,10 @@ def display_universal_file_upload():
             # Show detailed column information
             st.subheader("📋 Column Information")
             col_info = []
-            for col in analysis['columns']:
-                col_type = str(analysis.get('data_types', {}).get(col, 'unknown'))
+            columns = analysis.get('columns', [])
+            data_types = analysis.get('data_types', {})
+            for col in columns:
+                col_type = str(data_types.get(col, 'unknown'))
                 col_info.append({'Column': str(col), 'Type': col_type})
             
             if col_info:
