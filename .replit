@@ -31,8 +31,8 @@ author = "agent"
 
 [[workflows.workflow.tasks]]
 task = "shell.exec"
-args = "streamlit run app.py --server.port 5000 --server.address 0.0.0.0 --server.headless true"
-waitForPort = 5000
+args = "streamlit run app.py --server.port 8501 --server.address 0.0.0.0 --server.headless true"
+waitForPort = 8501
 
 [[workflows.workflow]]
 name = "install_dependencies"
@@ -45,6 +45,10 @@ args = "uv add plotly prophet beautifulsoup4 streamlit-autorefresh requests"
 [[ports]]
 localPort = 5000
 externalPort = 80
+
+[[ports]]
+localPort = 8501
+externalPort = 3000
 
 [agent]
 integrations = ["web_scraper==1.0.0"]
