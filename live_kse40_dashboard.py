@@ -442,7 +442,7 @@ class LiveKSE40Dashboard:
             title="📈 Top 10 Companies - 5-Minute Price Movements (Last 6 Hours)",
             xaxis_title="Time",
             yaxis_title="Price (PKR)",
-            height=500,
+            height=400,
             showlegend=True,
             legend=dict(orientation="v", yanchor="top", y=1, xanchor="left", x=1.02)
         )
