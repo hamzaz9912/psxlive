@@ -17,9 +17,10 @@ class LiveKSE40Dashboard:
         # Top 40 KSE-100 companies by market cap and trading volume
         self.top40_companies = {
             # Banking (Top 8)
-            'HBL': 'Habib Bank Limited',
+            'FABL': 'Faysal Bank Limited',
             'UBL': 'United Bank Limited', 
             'MCB': 'MCB Bank Limited',
+            'PREMA ': 'At-Tahur Limited',
             'NBP': 'National Bank of Pakistan',
             'ABL': 'Allied Bank Limited',
             'BAFL': 'Bank Alfalah Limited',
@@ -37,7 +38,7 @@ class LiveKSE40Dashboard:
             'SSGC': 'Sui Southern Gas Company',
             
             # Cement (Top 6)
-            'LUCK': 'Lucky Cement Limited',
+            'MLCF': 'Mapleaf Cement Limited',
             'DGKC': 'D. G. Khan Cement Company',
             'MLCF': 'Maple Leaf Cement Factory',
             'PIOC': 'Pioneer Cement Limited',
@@ -56,12 +57,12 @@ class LiveKSE40Dashboard:
             'NETSOL': 'NetSol Technologies',
             
             # Automobile (Top 3)
-            'INDU': 'Indus Motor Company',
+            'SEARL': 'THE SEARLE COMPANY ',
             'ATLH': 'Atlas Honda Limited',
             'PSMC': 'Pak Suzuki Motor Company',
             
             # Food & Beverages (Top 3)
-            'NESTLE': 'Nestle Pakistan Limited',
+            'AIRLINK': ' AIRLINK COMMUNICATION',
             'UNILEVER': 'Unilever Pakistan Limited',
             'NATF': 'National Foods Limited',
             
@@ -77,15 +78,15 @@ class LiveKSE40Dashboard:
         
         # Current price estimates (will be updated with live data)
         self.price_estimates = {
-            'HBL': 223.0, 'UBL': 368.8, 'MCB': 342.25, 'NBP': 122.96,
+            'FABL': 223.0, 'UBL': 368.8, 'MCB': 342.25, 'PREMA ': 324.25, 'NBP': 122.96,
             'ABL': 189.5, 'BAFL': 89.87, 'MEBL': 354.88, 'BAHL': 165.99,
             'OGDC': 89.5, 'PPL': 78.2, 'POL': 450.0, 'MARI': 1350.0,
             'PSO': 175.5, 'APL': 380.0, 'SNGP': 62.8, 'SSGC': 24.5,
-            'LUCK': 372.8, 'DGKC': 174.49, 'MLCF': 83.15, 'PIOC': 218.0,
+            'MLCF': 372.8, 'DGKC': 174.49, 'MLCF': 83.15, 'PIOC': 218.0,
             'KOHC': 440.88, 'ACPL': 279.9, 'FFC': 473.0, 'EFERT': 216.35,
             'FFBL': 24.5, 'ENGRO': 298.5, 'SYS': 650.0, 'TRG': 45.0,
-            'NETSOL': 82.0, 'INDU': 2130.0, 'ATLH': 1225.0, 'PSMC': 340.0,
-            'NESTLE': 6800.0, 'UNILEVER': 15500.0, 'NATF': 48.0,
+            'NETSOL': 82.0, 'SEARL': 2130.0, 'ATLH': 1225.0, 'PSMC': 340.0,
+            'AIRLINK': 6800.0, 'UNILEVER': 15500.0, 'NATF': 48.0,
             'HUBC': 95.0, 'KEL': 5.2, 'KAPCO': 32.0, 'ICI': 485.0, 'BERGER': 114.26
         }
         
@@ -374,13 +375,13 @@ class LiveKSE40Dashboard:
     def display_sector_performance(self, live_data):
         """Display performance by sector"""
         sectors = {
-            'Banking': ['HBL', 'UBL', 'MCB', 'NBP', 'ABL', 'BAFL', 'MEBL', 'BAHL'],
+            'Banking': ['FABL', 'UBL', 'MCB', 'PREMA ', 'NBP', 'ABL', 'BAFL', 'MEBL', 'BAHL'],
             'Oil & Gas': ['OGDC', 'PPL', 'POL', 'MARI', 'PSO', 'APL', 'SNGP', 'SSGC'],
-            'Cement': ['LUCK', 'DGKC', 'MLCF', 'PIOC', 'KOHC', 'ACPL'],
+            'Cement': ['MLCF', 'DGKC', 'MLCF', 'PIOC', 'KOHC', 'ACPL'],
             'Fertilizer': ['FFC', 'EFERT', 'FFBL', 'ENGRO'],
             'Technology': ['SYS', 'TRG', 'NETSOL'],
-            'Automobile': ['INDU', 'ATLH', 'PSMC'],
-            'Food & Beverages': ['NESTLE', 'UNILEVER', 'NATF'],
+            'Automobile': ['SEARL', 'ATLH', 'PSMC'],
+            'Food & Beverages': ['AIRLINK', 'UNILEVER', 'NATF'],
             'Power & Energy': ['HUBC', 'KEL', 'KAPCO'],
             'Chemicals': ['ICI', 'BERGER']
         }
@@ -413,7 +414,7 @@ class LiveKSE40Dashboard:
     def display_price_movement_chart(self, live_data):
         """Display real-time price movement visualization"""
         # Create a sample intraday chart for top 10 companies by market cap
-        top_companies = ['HBL', 'UBL', 'MCB', 'OGDC', 'PPL', 'LUCK', 'FFC', 'SYS', 'INDU', 'NESTLE']
+        top_companies = ['FABL', 'UBL', 'MCB',  'OGDC', 'PREMA ', 'PPL', 'MLCF', 'FFC', 'SYS', 'SEARL', 'AIRLINK']
         
         fig = go.Figure()
         
@@ -442,7 +443,7 @@ class LiveKSE40Dashboard:
             title="📈 Top 10 Companies - 5-Minute Price Movements (Last 6 Hours)",
             xaxis_title="Time",
             yaxis_title="Price (PKR)",
-            height=400,
+            height=500,
             showlegend=True,
             legend=dict(orientation="v", yanchor="top", y=1, xanchor="left", x=1.02)
         )
@@ -455,7 +456,7 @@ class LiveKSE40Dashboard:
         st.markdown("Select companies to monitor closely:")
         
         # Default high-performing companies for watchlist
-        default_watchlist = ['HBL', 'UBL', 'OGDC', 'LUCK', 'FFC', 'SYS', 'INDU', 'NESTLE']
+        default_watchlist = ['FABL', 'UBL', 'OGDC', 'MLCF', 'FFC', 'SYS', 'SEARL', 'AIRLINK']
         
         # Multi-select for watchlist
         selected_companies = st.multiselect(
