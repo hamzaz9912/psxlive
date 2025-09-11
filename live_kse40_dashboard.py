@@ -221,7 +221,7 @@ class LiveKSE40Dashboard:
                 market_trend = self._calculate_market_trend(symbol)
                 sector_sentiment = self._get_sector_sentiment(symbol)
 
-                if 9 <= hour <= 15:  # Market hours
+                if 8 <= hour <= 16:  # Market hours
                     # Time-based volatility patterns
                     if 9 <= hour <= 11:  # Morning session - highest volatility
                         base_volatility = current_price * 0.005
@@ -554,13 +554,13 @@ class LiveKSE40Dashboard:
         st.title("📊 Live KSE-100 Dashboard (5-Minute Updates)")
         st.markdown("**Comprehensive KSE-100 Companies (80+ Companies) with Real-Time Price Updates**")
         
-        # Auto-refresh component (5 minutes = 300 seconds)
-        refresh_count = st_autorefresh(interval=300000, limit=None, key="kse40_refresh")
+        # Auto-refresh component (8 hours = 28800 seconds)
+        refresh_count = st_autorefresh(interval=28800000, limit=None, key="kse40_refresh")
         
         # Auto-refresh control
         col1, col2, col3 = st.columns([2, 1, 1])
         with col1:
-            st.markdown(f"🔄 **Auto-refreshing every 5 minutes** (Refresh #{refresh_count})")
+            st.markdown(f"🔄 **Auto-refreshing every 8 hours** (Refresh #{refresh_count})")
         with col2:
             if st.button("🔄 Refresh Now", use_container_width=True):
                 st.rerun()
@@ -581,7 +581,7 @@ class LiveKSE40Dashboard:
         with col2:
             st.metric("Change %", f"{index_change_pct:+.2f}%")
         with col3:
-            st.metric("Market Status", "OPEN" if 9 <= datetime.now().hour <= 15 else "CLOSED")
+            st.metric("Market Status", "OPEN" if 8 <= datetime.now().hour <= 16 else "CLOSED")
         with col4:
             st.metric("Last Update", datetime.now().strftime("%H:%M:%S"))
         
@@ -642,10 +642,10 @@ class LiveKSE40Dashboard:
         st.markdown("---")
         col1, col2, col3 = st.columns(3)
         with col1:
-            market_status = "🟢 OPEN" if 9 <= datetime.now().hour <= 15 else "🔴 CLOSED"
+            market_status = "🟢 OPEN" if 8 <= datetime.now().hour <= 16 else "🔴 CLOSED"
             st.markdown(f"**Market Status:** {market_status}")
         with col2:
-            next_refresh = datetime.now() + timedelta(minutes=5)
+            next_refresh = datetime.now() + timedelta(hours=8)
             st.markdown(f"**Next Auto-Refresh:** {next_refresh.strftime('%H:%M:%S')}")
         with col3:
             st.markdown(f"**Data Points:** {len(live_data)} companies")
@@ -789,9 +789,12 @@ class LiveKSE40Dashboard:
             return
 
         fig = go.Figure()
-        
-        # Generate prediction data for next 6 hours for each selected company
-        times = pd.date_range(start=datetime.now(), end=datetime.now() + timedelta(hours=6), freq='5T')
+
+        # Generate prediction data for market hours (8 AM to 4 PM) for each selected company
+        today = datetime.now().date()
+        start_time = datetime.combine(today, datetime.strptime('08:00', '%H:%M').time())
+        end_time = datetime.combine(today, datetime.strptime('16:00', '%H:%M').time())
+        times = pd.date_range(start=start_time, end=end_time, freq='5T')
 
         for symbol in selected_companies:
             if symbol in live_data:
