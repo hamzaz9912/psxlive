@@ -774,7 +774,7 @@ class LiveKSE40Dashboard:
         st.dataframe(df_sectors, use_container_width=True, hide_index=True)
     
     def display_price_movement_chart(self, live_data):
-        """Display price prediction visualization for next 6 hours"""
+        """Display price prediction visualization for next 8 hours"""
         # Interactive selection for companies to display
         st.markdown("**Select Companies to Display in Chart:**")
         selected_companies = st.multiselect(
@@ -826,7 +826,7 @@ class LiveKSE40Dashboard:
                 ))
         
         fig.update_layout(
-            title=f"🔮 Selected Companies ({len(selected_companies)}) - 5-Minute Price Predictions (Next 6 Hours)",
+            title=f"🔮 Selected Companies ({len(selected_companies)}) - 5-Minute Price Predictions (Next 8 Hours)",
             xaxis_title="Time",
             yaxis_title="Price (PKR)",
             height=500,
