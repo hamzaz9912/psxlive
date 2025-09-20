@@ -19,6 +19,7 @@ class LiveKSE40Dashboard:
         self.top40_companies = {
             # Banking (Top 15)
             'HBL': 'Habib Bank Limited',
+            'KSE100': 'Karachi Stock Exchange',
             'UBL': 'United Bank Limited',
             'MCB': 'MCB Bank Limited',
             'NBP': 'National Bank of Pakistan',
@@ -135,7 +136,7 @@ class LiveKSE40Dashboard:
             'HBL': 120.00, 'UBL': 375.00, 'MCB': 210.00, 'NBP': 35.00,
             'ABL': 125.00, 'BAFL': 45.00, 'MEBL': 180.00, 'BAHL': 85.00,
             'AKBL': 22.50, 'BOP': 6.80, 'FABL': 28.50, 'SMBL': 2.50,
-            'SNBL': 12.00, 'JSBL': 8.50, 'UBLTFC': 15.00,
+            'SNBL': 12.00, 'JSBL': 8.50, 'UBLTFC': 15.00, 'KSE100': 140153.24,
 
             # Oil & Gas - Accurate current prices
             'OGDC': 105.00, 'PPL': 85.00, 'POL': 380.00, 'MARI': 1850.00,
@@ -395,7 +396,7 @@ class LiveKSE40Dashboard:
         market_data = {}
 
         # Priority companies to fetch
-        priority_symbols = ['UBL', 'HBL', 'MCB', 'OGDC', 'PPL', 'LUCK', 'FFC', 'SYS', 'SEARL', 'AIRLINK']
+        priority_symbols = ['UBL', 'HBL', 'KSE100', 'MCB', 'OGDC', 'PPL', 'LUCK', 'FFC', 'SYS', 'SEARL', 'AIRLINK']
 
         for symbol in priority_symbols:
             try:
@@ -447,6 +448,7 @@ class LiveKSE40Dashboard:
         # Check for common symbol variations
         variations = {
             'HBL': ['HBL', 'HABIB'],
+            'KSE100': ['KSE100', 'KSE-100', 'KSE'],
             'MCB': ['MCB', 'MCBA'],
             'NBP': ['NBP', 'NBPA'],
             'UBL': ['UBL', 'UBLA'],
@@ -537,7 +539,7 @@ class LiveKSE40Dashboard:
     def _get_sector_mapping(self):
         """Get comprehensive sector mapping for all KSE-100 symbols"""
         return {
-            'Banking': ['HBL', 'UBL', 'MCB', 'NBP', 'ABL', 'BAFL', 'MEBL', 'BAHL', 'AKBL', 'BOP', 'FABL', 'SMBL', 'SNBL', 'JSBL', 'UBLTFC'],
+            'Banking': ['HBL', 'KSE100', 'UBL', 'MCB', 'NBP', 'ABL', 'BAFL', 'MEBL', 'BAHL', 'AKBL', 'BOP', 'FABL', 'SMBL', 'SNBL', 'JSBL', 'UBLTFC'],
             'Oil & Gas': ['OGDC', 'PPL', 'POL', 'MARI', 'PSO', 'APL', 'SNGP', 'SSGC', 'NRL', 'ATRL', 'PRL', 'BYCO'],
             'Cement': ['LUCK', 'DGKC', 'MLCF', 'PIOC', 'KOHC', 'ACPL', 'FCCL', 'CHCC', 'POWER', 'BWCL'],
             'Fertilizer': ['FFC', 'EFERT', 'FFBL', 'ENGRO', 'FATIMA', 'DAWOOD', 'EFUL', 'JGCL'],
@@ -736,7 +738,7 @@ class LiveKSE40Dashboard:
     def display_sector_performance(self, live_data):
         """Display performance by sector for expanded KSE-100"""
         sectors = {
-            'Banking': ['HBL', 'UBL', 'MCB', 'NBP', 'ABL', 'BAFL', 'MEBL', 'BAHL', 'AKBL', 'BOP', 'FABL', 'SMBL', 'SNBL', 'JSBL', 'UBLTFC'],
+            'Banking': ['HBL', 'KSE100', 'UBL', 'MCB', 'NBP', 'ABL', 'BAFL', 'MEBL', 'BAHL', 'AKBL', 'BOP', 'FABL', 'SMBL', 'SNBL', 'JSBL', 'UBLTFC'],
             'Oil & Gas': ['OGDC', 'PPL', 'POL', 'MARI', 'PSO', 'APL', 'SNGP', 'SSGC', 'NRL', 'ATRL', 'PRL', 'BYCO'],
             'Cement': ['LUCK', 'DGKC', 'MLCF', 'PIOC', 'KOHC', 'ACPL', 'FCCL', 'CHCC', 'POWER', 'BWCL'],
             'Fertilizer': ['FFC', 'EFERT', 'FFBL', 'ENGRO', 'FATIMA', 'DAWOOD', 'EFUL', 'JGCL'],
@@ -842,8 +844,8 @@ class LiveKSE40Dashboard:
         st.markdown("Select companies to monitor closely:")
         
         # Default high-performing companies for watchlist (expanded with major KSE-100 companies)
-        default_watchlist = ['HBL', 'UBL', 'OGDC', 'LUCK', 'FFC', 'SYS', 'SEARL', 'AIRLINK', 'HUBC', 'PPL', 'MCB', 'PTCL', 'NESTLE']
-        
+        default_watchlist = ['HBL', 'KSE100', 'UBL', 'OGDC', 'LUCK', 'FFC', 'SYS', 'SEARL', 'AIRLINK', 'HUBC', 'PPL', 'MCB', 'PTCL', 'NESTLE']
+
         # Multi-select for watchlist
         selected_companies = st.multiselect(
             "Choose companies for your watchlist:",
