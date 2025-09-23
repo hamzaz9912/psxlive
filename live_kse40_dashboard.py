@@ -222,18 +222,18 @@ class LiveKSE40Dashboard:
                 market_trend = self._calculate_market_trend(symbol)
                 sector_sentiment = self._get_sector_sentiment(symbol)
 
-                if (17 <= hour <= 23) or (0 <= hour <= 1):  # Market hours
+                if 8 <= hour <= 16:  # Market hours
                     # Time-based volatility patterns
-                    if 17 <= hour <= 19:  # Evening session - highest volatility
+                    if 9 <= hour <= 11:  # Morning session - highest volatility
                         base_volatility = current_price * 0.005
                         trend_bias = market_trend * 0.7  # Strong trend influence
-                    elif 19 <= hour <= 20:  # Mid-evening
+                    elif 11 <= hour <= 12:  # Pre-lunch
                         base_volatility = current_price * 0.003
                         trend_bias = market_trend * 0.5
-                    elif 20 <= hour <= 22:  # Late evening - lower activity
+                    elif 12 <= hour <= 14:  # Lunch break - lower activity
                         base_volatility = current_price * 0.001
                         trend_bias = market_trend * 0.2
-                    else:  # Late night session
+                    else:  # Afternoon session
                         base_volatility = current_price * 0.004
                         trend_bias = market_trend * 0.6
 
@@ -583,7 +583,7 @@ class LiveKSE40Dashboard:
         with col2:
             st.metric("Change %", f"{index_change_pct:+.2f}%")
         with col3:
-            st.metric("Market Status", "OPEN" if (17 <= datetime.now().hour <= 23) or (0 <= datetime.now().hour <= 1) else "CLOSED")
+            st.metric("Market Status", "OPEN" if 8 <= datetime.now().hour <= 16 else "CLOSED")
         with col4:
             st.metric("Last Update", datetime.now().strftime("%H:%M:%S"))
         
@@ -792,7 +792,7 @@ class LiveKSE40Dashboard:
 
         fig = go.Figure()
 
-        # Generate prediction data for market hours (5:40 PM to 1:40 AM next day) for each selected company
+        # Generate prediction data for market hours (5:40 PM to next 8 hours) for each selected company
         today = datetime.now().date()
         start_time = datetime.combine(today, datetime.strptime('17:40', '%H:%M').time())
         end_time = start_time + timedelta(hours=8)
@@ -835,6 +835,7 @@ class LiveKSE40Dashboard:
             showlegend=True,
             legend=dict(orientation="v", yanchor="top", y=1, xanchor="left", x=1.02)
         )
+        fig.update_xaxes(tickformat='%I:%M %p')
         
         st.plotly_chart(fig, use_container_width=True)
     
