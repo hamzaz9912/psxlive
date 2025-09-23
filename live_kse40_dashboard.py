@@ -222,18 +222,18 @@ class LiveKSE40Dashboard:
                 market_trend = self._calculate_market_trend(symbol)
                 sector_sentiment = self._get_sector_sentiment(symbol)
 
-                if 8 <= hour <= 16:  # Market hours
+                if (hour > 9 or (hour == 9 and minute >= 30)) and (hour < 17 or (hour == 17 and minute <= 30)):  # Market hours 9:30 AM to 5:30 PM
                     # Time-based volatility patterns
                     if 9 <= hour <= 11:  # Morning session - highest volatility
                         base_volatility = current_price * 0.005
                         trend_bias = market_trend * 0.7  # Strong trend influence
-                    elif 11 <= hour <= 12:  # Pre-lunch
+                    elif 11 <= hour <= 13:  # Mid-morning
                         base_volatility = current_price * 0.003
                         trend_bias = market_trend * 0.5
-                    elif 12 <= hour <= 14:  # Lunch break - lower activity
+                    elif 13 <= hour <= 15:  # Afternoon - lower activity
                         base_volatility = current_price * 0.001
                         trend_bias = market_trend * 0.2
-                    else:  # Afternoon session
+                    else:  # Late afternoon session
                         base_volatility = current_price * 0.004
                         trend_bias = market_trend * 0.6
 
@@ -583,7 +583,8 @@ class LiveKSE40Dashboard:
         with col2:
             st.metric("Change %", f"{index_change_pct:+.2f}%")
         with col3:
-            st.metric("Market Status", "OPEN" if 8 <= datetime.now().hour <= 16 else "CLOSED")
+            now = datetime.now()
+            st.metric("Market Status", "OPEN" if (now.hour > 9 or (now.hour == 9 and now.minute >= 30)) and (now.hour < 17 or (now.hour == 17 and now.minute <= 30)) else "CLOSED")
         with col4:
             st.metric("Last Update", datetime.now().strftime("%H:%M:%S"))
         
@@ -792,9 +793,9 @@ class LiveKSE40Dashboard:
 
         fig = go.Figure()
 
-        # Generate prediction data for market hours (5:40 PM to next 8 hours) for each selected company
+        # Generate prediction data for after market hours (5:30 PM to next 8 hours) for each selected company
         today = datetime.now().date()
-        start_time = datetime.combine(today, datetime.strptime('17:40', '%H:%M').time())
+        start_time = datetime.combine(today, datetime.strptime('17:30', '%H:%M').time())
         end_time = start_time + timedelta(hours=8)
         times = pd.date_range(start=start_time, end=end_time, freq='5T')
 
