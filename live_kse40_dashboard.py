@@ -645,7 +645,7 @@ class LiveKSE40Dashboard:
         st.markdown("---")
         col1, col2, col3 = st.columns(3)
         with col1:
-            market_status = "🟢 OPEN" if 8 <= datetime.now().hour <= 16 else "🔴 CLOSED"
+            market_status = "🟢 OPEN" if 9 <= datetime.now().hour <= 16 else "🔴 CLOSED"
             st.markdown(f"**Market Status:** {market_status}")
         with col2:
             next_refresh = datetime.now() + timedelta(hours=8)
@@ -777,7 +777,7 @@ class LiveKSE40Dashboard:
         st.dataframe(df_sectors, use_container_width=True, hide_index=True)
     
     def display_price_movement_chart(self, live_data):
-        """Display price prediction visualization for next 8 hours"""
+        """Display price prediction visualization: 9:30 AM-5:30 PM during market hours, 5:30 PM onwards after hours"""
         # Interactive selection for companies to display
         st.markdown("**Select Companies to Display in Chart:**")
         selected_companies = st.multiselect(
@@ -793,10 +793,20 @@ class LiveKSE40Dashboard:
 
         fig = go.Figure()
 
-        # Generate prediction data for after market hours (5:30 PM to next 8 hours) for each selected company
-        today = datetime.now().date()
-        start_time = datetime.combine(today, datetime.strptime('17:30', '%H:%M').time())
-        end_time = start_time + timedelta(hours=8)
+        # Determine chart period based on market status
+        now = datetime.now()
+        today = now.date()
+        market_open = (now.hour > 9 or (now.hour == 9 and now.minute >= 30)) and (now.hour < 17 or (now.hour == 17 and now.minute <= 30))
+
+        if market_open:
+            # During market hours: show from 9:30 AM to 5:30 PM
+            start_time = datetime.combine(today, datetime.strptime('09:30', '%H:%M').time())
+            end_time = datetime.combine(today, datetime.strptime('17:30', '%H:%M').time())
+        else:
+            # After market hours: show from 5:30 PM to 8 hours later
+            start_time = datetime.combine(today, datetime.strptime('17:30', '%H:%M').time())
+            end_time = start_time + timedelta(hours=8)
+
         times = pd.date_range(start=start_time, end=end_time, freq='5T')
 
         for symbol in selected_companies:
@@ -828,8 +838,12 @@ class LiveKSE40Dashboard:
                     line=dict(width=2)
                 ))
         
+        if market_open:
+            chart_title = f"🔮 Selected Companies ({len(selected_companies)}) - 5-Minute Price Predictions (9:30 AM to 5:30 PM)"
+        else:
+            chart_title = f"🔮 Selected Companies ({len(selected_companies)}) - 5-Minute Price Predictions (5:30 PM to Next 8 Hours)"
         fig.update_layout(
-            title=f"🔮 Selected Companies ({len(selected_companies)}) - 5-Minute Price Predictions (Next 8 Hours)",
+            title=chart_title,
             xaxis_title="Time",
             yaxis_title="Price (PKR)",
             height=500,
