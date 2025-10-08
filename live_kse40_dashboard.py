@@ -10,10 +10,17 @@ from bs4 import BeautifulSoup
 import re
 import json
 from streamlit_autorefresh import st_autorefresh
+import pytz
 
 class LiveKSE40Dashboard:
     """Live 5-minute dashboard for comprehensive KSE-100 companies (80+ companies)"""
-    
+
+    @staticmethod
+    def get_pakistan_time():
+        """Get current time in Pakistan timezone (Asia/Karachi, UTC+5)"""
+        pakistan_tz = pytz.timezone('Asia/Karachi')
+        return datetime.now(pakistan_tz)
+
     def __init__(self):
         # Comprehensive KSE-100 companies by market cap and trading volume (Expanded to 80+ companies)
         self.top40_companies = {
@@ -212,17 +219,18 @@ class LiveKSE40Dashboard:
                                 break
                 
                 # Enhanced prediction accuracy with realistic market patterns
-                today_seed = int(datetime.now().strftime('%Y%m%d'))
+                pakistan_time = self.get_pakistan_time()
+                today_seed = int(pakistan_time.strftime('%Y%m%d'))
                 np.random.seed(hash(symbol + str(today_seed)) % 10000)
 
-                hour = datetime.now().hour
-                minute = datetime.now().minute
+                hour = pakistan_time.hour
+                minute = pakistan_time.minute
 
                 # Base market conditions
                 market_trend = self._calculate_market_trend(symbol)
                 sector_sentiment = self._get_sector_sentiment(symbol)
 
-                if (hour > 9 or (hour == 9 and minute >= 30)) and (hour < 17 or (hour == 17 and minute <= 30)):  # Market hours 9:30 AM to 5:30 PM
+                if (hour > 9 or (hour == 9 and minute >= 30)) and (hour < 17 or (hour == 17 and minute <= 30)):  # Market hours 9:30 AM to 5:30 PM PKT
                     # Time-based volatility patterns
                     if 9 <= hour <= 11:  # Morning session - highest volatility
                         base_volatility = current_price * 0.005
@@ -270,7 +278,7 @@ class LiveKSE40Dashboard:
                     'high': current_price * np.random.uniform(1.001, 1.02),
                     'low': current_price * np.random.uniform(0.98, 0.999),
                     'data_source': data_source,
-                    'timestamp': datetime.now()
+                    'timestamp': self.get_pakistan_time()
                 }
                 
                 # Update price estimate for next iteration
@@ -471,7 +479,7 @@ class LiveKSE40Dashboard:
         try:
             # Base trend calculation using symbol characteristics
             symbol_hash = hash(symbol) % 100
-            today_seed = int(datetime.now().strftime('%Y%m%d'))
+            today_seed = int(self.get_pakistan_time().strftime('%Y%m%d'))
 
             # Combine symbol and date for consistent but changing trends
             trend_seed = hash(symbol + str(today_seed)) % 1000
@@ -567,7 +575,7 @@ class LiveKSE40Dashboard:
             if st.button("🔄 Refresh Now", use_container_width=True):
                 st.rerun()
         with col3:
-            st.markdown(f"⏰ **{datetime.now().strftime('%H:%M:%S')}**")
+            st.markdown(f"⏰ **{self.get_pakistan_time().strftime('%H:%M:%S')}**")
         
         # KSE-100 Index
         kse_index = 140153.24 + np.random.normal(0, 100)  # Simulate index movement
@@ -583,10 +591,10 @@ class LiveKSE40Dashboard:
         with col2:
             st.metric("Change %", f"{index_change_pct:+.2f}%")
         with col3:
-            now = datetime.now()
-            st.metric("Market Status", "OPEN" if (now.hour > 9 or (now.hour == 9 and now.minute >= 30)) and (now.hour < 17 or (now.hour == 17 and now.minute <= 30)) else "CLOSED")
+            pakistan_time = self.get_pakistan_time()
+            st.metric("Market Status", "OPEN" if (pakistan_time.hour > 9 or (pakistan_time.hour == 9 and pakistan_time.minute >= 30)) and (pakistan_time.hour < 17 or (pakistan_time.hour == 17 and pakistan_time.minute <= 30)) else "CLOSED")
         with col4:
-            st.metric("Last Update", datetime.now().strftime("%H:%M:%S"))
+            st.metric("Last Update", self.get_pakistan_time().strftime("%H:%M:%S"))
         
         # Fetch live data
         with st.spinner("Fetching live prices for 40 companies..."):
@@ -645,10 +653,11 @@ class LiveKSE40Dashboard:
         st.markdown("---")
         col1, col2, col3 = st.columns(3)
         with col1:
-            market_status = "🟢 OPEN" if 9 <= datetime.now().hour <= 16 else "🔴 CLOSED"
+            pakistan_time = self.get_pakistan_time()
+            market_status = "🟢 OPEN" if 9 <= pakistan_time.hour <= 16 else "🔴 CLOSED"
             st.markdown(f"**Market Status:** {market_status}")
         with col2:
-            next_refresh = datetime.now() + timedelta(hours=8)
+            next_refresh = self.get_pakistan_time() + timedelta(hours=8)
             st.markdown(f"**Next Auto-Refresh:** {next_refresh.strftime('%H:%M:%S')}")
         with col3:
             st.markdown(f"**Data Points:** {len(live_data)} companies")
@@ -694,7 +703,7 @@ class LiveKSE40Dashboard:
             st.download_button(
                 label="📥 Download CSV",
                 data=csv_data,
-                file_name=f"kse40_live_{datetime.now().strftime('%Y%m%d_%H%M%S')}.csv",
+                file_name=f"kse40_live_{self.get_pakistan_time().strftime('%Y%m%d_%H%M%S')}.csv",
                 mime="text/csv"
             )
     
@@ -794,16 +803,16 @@ class LiveKSE40Dashboard:
         fig = go.Figure()
 
         # Determine chart period based on market status
-        now = datetime.now()
-        today = now.date()
-        market_open = (now.hour > 9 or (now.hour == 9 and now.minute >= 30)) and (now.hour < 17 or (now.hour == 17 and now.minute <= 30))
+        pakistan_time = self.get_pakistan_time()
+        today = pakistan_time.date()
+        market_open = (pakistan_time.hour > 9 or (pakistan_time.hour == 9 and pakistan_time.minute >= 30)) and (pakistan_time.hour < 17 or (pakistan_time.hour == 17 and pakistan_time.minute <= 30))
 
         if market_open:
-            # During market hours: show from 9:30 AM to 5:30 PM
+            # During market hours: show from 9:30 AM to 5:30 PM PKT
             start_time = datetime.combine(today, datetime.strptime('09:30', '%H:%M').time())
             end_time = datetime.combine(today, datetime.strptime('17:30', '%H:%M').time())
         else:
-            # After market hours: show from 5:30 PM to 8 hours later
+            # After market hours: show from 5:30 PM to 8 hours later PKT
             start_time = datetime.combine(today, datetime.strptime('17:30', '%H:%M').time())
             end_time = start_time + timedelta(hours=8)
 
@@ -814,7 +823,7 @@ class LiveKSE40Dashboard:
                 current_price = live_data[symbol]['current_price']
                 
                 # Enhanced price movement generation with daily variation and market trends
-                today_seed = int(datetime.now().strftime('%Y%m%d'))
+                today_seed = int(self.get_pakistan_time().strftime('%Y%m%d'))
                 np.random.seed(hash(symbol + str(today_seed)) % 10000)
 
                 # Get market trend and sector sentiment for this symbol

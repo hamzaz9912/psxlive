@@ -7,10 +7,17 @@ import time
 import streamlit as st
 import re
 import json
+import pytz
 
 class EnhancedPSXFetcher:
     """Enhanced PSX data fetcher for all KSE-100 companies with authentic live data"""
-    
+
+    @staticmethod
+    def get_pakistan_time():
+        """Get current time in Pakistan timezone (Asia/Karachi, UTC+5)"""
+        pakistan_tz = pytz.timezone('Asia/Karachi')
+        return datetime.now(pakistan_tz)
+
     def __init__(self):
         self.session = requests.Session()
         self.session.headers.update({
@@ -236,7 +243,7 @@ class EnhancedPSXFetcher:
                     'company_name': company_name,
                     'symbol': symbol,
                     'current_price': live_price,
-                    'timestamp': datetime.now(),
+                    'timestamp': self.get_pakistan_time(),
                     'source': data_source
                 }
                 successful_fetches += 1
@@ -261,7 +268,7 @@ class EnhancedPSXFetcher:
                         'company_name': company_name,
                         'symbol': symbol,
                         'current_price': estimated_price,
-                        'timestamp': datetime.now(),
+                        'timestamp': self.get_pakistan_time(),
                         'source': 'sector_based_estimate',
                         'note': 'Live data not available - showing sector-based estimate'
                     }
@@ -346,7 +353,7 @@ class EnhancedPSXFetcher:
                                     'high': high,
                                     'low': low,
                                     'current': current,
-                                    'timestamp': datetime.now(),
+                                    'timestamp': self.get_pakistan_time(),
                                     'source': 'psx_table'
                                 }
                         except (ValueError, IndexError):
@@ -382,7 +389,7 @@ class EnhancedPSXFetcher:
                                     price = float(item['current'])
                                     market_data[symbol] = {
                                         'current': price,
-                                        'timestamp': datetime.now(),
+                                        'timestamp': self.get_pakistan_time(),
                                         'source': 'psx_json'
                                     }
                         elif isinstance(data, dict):
@@ -392,7 +399,7 @@ class EnhancedPSXFetcher:
                                     price = float(value['current'])
                                     market_data[symbol] = {
                                         'current': price,
-                                        'timestamp': datetime.now(),
+                                        'timestamp': self.get_pakistan_time(),
                                         'source': 'psx_json'
                                     }
                     except:
@@ -476,7 +483,7 @@ class EnhancedPSXFetcher:
                 'symbol': symbol,
                 'company_name': self.kse100_companies.get(symbol, 'Unknown'),
                 'current_price': live_price,
-                'timestamp': datetime.now(),
+                'timestamp': self.get_pakistan_time(),
                 'source': data_source
             }
 
@@ -504,7 +511,7 @@ class EnhancedPSXFetcher:
                     if symbol and price > 0:
                         market_data[symbol] = {
                             'current': price,
-                            'timestamp': datetime.now(),
+                            'timestamp': self.get_pakistan_time(),
                             'source': 'psx_api'
                         }
                 except:
@@ -525,7 +532,7 @@ class EnhancedPSXFetcher:
                             if price > 0:
                                 market_data[symbol.upper()] = {
                                     'current': price,
-                                    'timestamp': datetime.now(),
+                                    'timestamp': self.get_pakistan_time(),
                                     'source': 'psx_script'
                                 }
                         except:
@@ -568,7 +575,7 @@ class EnhancedPSXFetcher:
                                         if symbol and price > 0 and len(symbol) <= 10:
                                             market_data[symbol] = {
                                                 'current': price,
-                                                'timestamp': datetime.now(),
+                                                'timestamp': self.get_pakistan_time(),
                                                 'source': 'alternative_source'
                                             }
                                     except:
@@ -696,7 +703,7 @@ class EnhancedPSXFetcher:
                                     if 100000 <= value <= 200000:  # Reasonable range for KSE-100
                                         return {
                                             'value': value,
-                                            'timestamp': datetime.now(),
+                                            'timestamp': self.get_pakistan_time(),
                                             'source': 'psx_official'
                                         }
                                 except ValueError:
@@ -705,14 +712,14 @@ class EnhancedPSXFetcher:
             # Fallback to current market level (based on recent data)
             return {
                 'value': 140153.24,  # Current level from PSX data
-                'timestamp': datetime.now(),
+                'timestamp': self.get_pakistan_time(),
                 'source': 'psx_recent_data'
             }
             
         except Exception:
             return {
                 'value': 140153.24,
-                'timestamp': datetime.now(),
+                'timestamp': self.get_pakistan_time(),
                 'source': 'fallback_current_level'
             }
 
@@ -739,7 +746,7 @@ class EnhancedPSXFetcher:
                     return {
                         'price': sector_estimate,
                         'source': 'sector_estimate_validated',
-                        'timestamp': datetime.now(),
+                        'timestamp': self.get_pakistan_time(),
                         'note': f'Live price validated and corrected from {live_price["price"]:.2f} to {sector_estimate:.2f}'
                     }
                 return live_price
@@ -754,7 +761,7 @@ class EnhancedPSXFetcher:
             return {
                 'price': estimated_price,
                 'source': 'sector_based_estimate',
-                'timestamp': datetime.now(),
+                'timestamp': self.get_pakistan_time(),
                 'note': 'Live data not available - showing sector-based estimate'
             }
 
@@ -764,7 +771,7 @@ class EnhancedPSXFetcher:
             return {
                 'price': estimated_price,
                 'source': 'sector_based_estimate_fallback',
-                'timestamp': datetime.now(),
+                'timestamp': self.get_pakistan_time(),
                 'error': str(e)
             }
 
@@ -781,7 +788,7 @@ class EnhancedPSXFetcher:
                     return {
                         'price': market_data_item['current'],
                         'source': 'psx_official_direct_match',
-                        'timestamp': datetime.now()
+                        'timestamp': self.get_pakistan_time()
                     }
 
                 # Company name match (if we have company name)
@@ -791,7 +798,7 @@ class EnhancedPSXFetcher:
                         return {
                             'price': market_data_item['current'],
                             'source': 'psx_official_name_match',
-                            'timestamp': datetime.now()
+                            'timestamp': self.get_pakistan_time()
                         }
 
                     # Partial name match
@@ -799,7 +806,7 @@ class EnhancedPSXFetcher:
                         return {
                             'price': market_data_item['current'],
                             'source': 'psx_official_partial_match',
-                            'timestamp': datetime.now()
+                            'timestamp': self.get_pakistan_time()
                         }
 
         return None
@@ -842,7 +849,7 @@ class EnhancedPSXFetcher:
                                     return {
                                         'price': price,
                                         'source': 'psx_individual_page',
-                                        'timestamp': datetime.now()
+                                        'timestamp': self.get_pakistan_time()
                                     }
 
                         # Look for price in text content
@@ -863,7 +870,7 @@ class EnhancedPSXFetcher:
                                         return {
                                             'price': price,
                                             'source': 'psx_individual_page_text',
-                                            'timestamp': datetime.now()
+                                            'timestamp': self.get_pakistan_time()
                                         }
                                 except:
                                     continue

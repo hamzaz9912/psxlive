@@ -18,10 +18,17 @@ import json
 import re
 import time
 import io
+import pytz
 
 class EnhancedPSXFeatures:
     """Enhanced features for PSX forecasting with file upload, web scraping, and news analysis"""
-    
+
+    @staticmethod
+    def get_pakistan_time():
+        """Get current time in Pakistan timezone (Asia/Karachi, UTC+5)"""
+        pakistan_tz = pytz.timezone('Asia/Karachi')
+        return datetime.now(pakistan_tz)
+
     def __init__(self):
         self.pakistan_holidays = holidays.Pakistan()
         self.market_hours = {'open': '09:30', 'close': '15:00'}
@@ -29,18 +36,18 @@ class EnhancedPSXFeatures:
         
     def is_market_open(self):
         """Check if PSX market is currently open"""
-        now = datetime.now()
+        now = self.get_pakistan_time()
         current_time = now.strftime('%H:%M')
-        
+
         # Check if it's weekend
         if now.weekday() >= 5:  # Saturday=5, Sunday=6
             return False, "Market closed - Weekend"
-        
+
         # Check if it's a Pakistan holiday
         if now.date() in self.pakistan_holidays:
             holiday_name = self.pakistan_holidays.get(now.date())
             return False, f"Market closed - {holiday_name}"
-        
+
         # Check market hours (9:30 AM to 3:00 PM PKT)
         if self.market_hours['open'] <= current_time <= self.market_hours['close']:
             return True, "Market Open"
@@ -104,7 +111,7 @@ class EnhancedPSXFeatures:
                         'current_price': current_price,
                         'change': change,
                         'volume': volume,
-                        'timestamp': datetime.now()
+                        'timestamp': self.get_pakistan_time()
                     }
         
         except Exception as e:
@@ -151,7 +158,7 @@ class EnhancedPSXFeatures:
                                     price = float(price_match.group())
                                     companies_data[symbol] = {
                                         'current_price': price,
-                                        'timestamp': datetime.now(),
+                                        'timestamp': self.get_pakistan_time(),
                                         'source': 'beautifulsoup'
                                     }
                     
@@ -210,7 +217,7 @@ class EnhancedPSXFeatures:
                         
                         # Add today's price to historical data
                         new_row = pd.DataFrame({
-                            'Date': [datetime.now().strftime('%Y-%m-%d')],
+                            'Date': [self.get_pakistan_time().strftime('%Y-%m-%d')],
                             'Price': [current_price]
                         })
                         
@@ -240,7 +247,7 @@ class EnhancedPSXFeatures:
             # Convert dates
             start_dt = pd.to_datetime(start_date)
             end_dt = pd.to_datetime(end_date)
-            days_ahead = (end_dt - datetime.now()).days
+            days_ahead = (end_dt - self.get_pakistan_time()).days
             
             if days_ahead <= 0:
                 days_ahead = 1
@@ -289,7 +296,7 @@ class EnhancedPSXFeatures:
                             news_data.append({
                                 'title': title,
                                 'source': source,
-                                'timestamp': datetime.now()
+                                'timestamp': self.get_pakistan_time()
                             })
                             
                 except Exception:
@@ -366,7 +373,7 @@ class EnhancedPSXFeatures:
             
             if full_day_forecast is not None and not full_day_forecast.empty:
                 # Create 5-minute intervals from the forecast
-                today = datetime.now().date()
+                today = self.get_pakistan_time().date()
                 
                 # Generate 5-minute intervals from 9:30 AM to 3:00 PM
                 trading_times = []
@@ -479,15 +486,15 @@ def display_enhanced_file_upload():
                 
                 with col1:
                     start_date = st.date_input(
-                        "Start Date", 
-                        value=datetime.now().date(),
+                        "Start Date",
+                        value=self.get_pakistan_time().date(),
                         help="Forecast start date"
                     )
-                
+
                 with col2:
                     end_date = st.date_input(
-                        "End Date", 
-                        value=(datetime.now() + timedelta(days=30)).date(),
+                        "End Date",
+                        value=(self.get_pakistan_time() + timedelta(days=30)).date(),
                         help="Forecast end date"
                     )
                 
@@ -635,7 +642,7 @@ def display_enhanced_file_upload():
                                             st.download_button(
                                                 label="📥 Download Forecast Data",
                                                 data=csv,
-                                                file_name=f"{company}_forecast_{datetime.now().strftime('%Y%m%d')}.csv",
+                                                file_name=f"{company}_forecast_{self.get_pakistan_time().strftime('%Y%m%d')}.csv",
                                                 mime="text/csv"
                                             )
                                     
