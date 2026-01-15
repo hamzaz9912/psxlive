@@ -67,6 +67,7 @@ class LiveKSE40Dashboard:
             'CHCC': 'Cherat Cement Company',
             'POWER': 'Power Cement Limited',
             'BWCL': 'Bestway Cement Limited',
+            'THCCL': 'Thatta Cement Company Limited',
 
             # Fertilizer (Top 8)
             'FFC': 'Fauji Fertilizer Company',
