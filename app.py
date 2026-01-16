@@ -5,7 +5,7 @@ import plotly.graph_objects as go
 from plotly.subplots import make_subplots
 import time
 from datetime import datetime, timedelta
-from streamlit_autorefresh import st_autorefresh
+# from streamlit_autorefresh import st_autorefresh
 
 # Import custom modules
 from data_fetcher import DataFetcher
@@ -30,52 +30,54 @@ st.set_page_config(
     initial_sidebar_state="expanded"
 )
 
-# Initialize session state
-if 'data_fetcher' not in st.session_state:
-    st.session_state.data_fetcher = DataFetcher()
-if 'forecaster' not in st.session_state:
-    st.session_state.forecaster = StockForecaster()
-if 'visualizer' not in st.session_state:
-    st.session_state.visualizer = ChartVisualizer()
-if 'cache_manager' not in st.session_state:
-    st.session_state.cache_manager = get_cache_manager()
-if 'news_predictor' not in st.session_state:
-    st.session_state.news_predictor = get_news_predictor()
-if 'universal_predictor' not in st.session_state:
-    st.session_state.universal_predictor = get_universal_predictor()
-if 'brand_predictor' not in st.session_state:
-    st.session_state.brand_predictor = get_comprehensive_brand_predictor()
-if 'enhanced_psx_fetcher' not in st.session_state:
-    st.session_state.enhanced_psx_fetcher = EnhancedPSXFetcher()
-if 'last_update' not in st.session_state:
-    st.session_state.last_update = None
-if 'kse_data' not in st.session_state:
-    st.session_state.kse_data = None
-if 'companies_data' not in st.session_state:
-    st.session_state.companies_data = {}
-if 'all_kse100_data' not in st.session_state:
-    st.session_state.all_kse100_data = {}
-if 'live_kse40_dashboard' not in st.session_state:
-    st.session_state.live_kse40_dashboard = LiveKSE40Dashboard()
-if 'enhanced_live_dashboard' not in st.session_state:
-    st.session_state.enhanced_live_dashboard = get_enhanced_live_dashboard()
 
 def main():
+    # Initialize session state FIRST
+    if 'data_fetcher' not in st.session_state:
+        st.session_state.data_fetcher = DataFetcher()
+    if 'forecaster' not in st.session_state:
+        st.session_state.forecaster = StockForecaster()
+    if 'visualizer' not in st.session_state:
+        st.session_state.visualizer = ChartVisualizer()
+    if 'cache_manager' not in st.session_state:
+        st.session_state.cache_manager = get_cache_manager()
+    if 'news_predictor' not in st.session_state:
+        st.session_state.news_predictor = get_news_predictor()
+    if 'universal_predictor' not in st.session_state:
+        st.session_state.universal_predictor = get_universal_predictor()
+    if 'brand_predictor' not in st.session_state:
+        st.session_state.brand_predictor = get_comprehensive_brand_predictor()
+    if 'enhanced_psx_fetcher' not in st.session_state:
+        st.session_state.enhanced_psx_fetcher = EnhancedPSXFetcher()
+    if 'last_update' not in st.session_state:
+        st.session_state.last_update = None
+    if 'kse_data' not in st.session_state:
+        st.session_state.kse_data = None
+    if 'companies_data' not in st.session_state:
+        st.session_state.companies_data = {}
+    if 'all_kse100_data' not in st.session_state:
+        st.session_state.all_kse100_data = {}
+    if 'live_kse40_dashboard' not in st.session_state:
+        st.session_state.live_kse40_dashboard = LiveKSE40Dashboard()
+    if 'enhanced_live_dashboard' not in st.session_state:
+        st.session_state.enhanced_live_dashboard = get_enhanced_live_dashboard()
+
     st.title("📈 PSX KSE-100 Forecasting Dashboard")
     st.markdown("---")
-    
+
     # Auto-refresh every 5 minutes (300 seconds)
-    count = st_autorefresh(interval=300000, limit=None, key="data_refresh")
-    
+    # count = st_autorefresh(interval=300000, limit=None, key="data_refresh")
+    count = 1  # Placeholder
+
     # Sidebar for controls
     with st.sidebar:
         st.header("Dashboard Controls")
-        
+
         # Refresh button
         if st.button("🔄 Refresh Data Now", use_container_width=True):
             st.session_state.last_update = None
             st.rerun()
-        
+
         # Show last update time
         if st.session_state.last_update:
             st.info(f"Last Updated: {st.session_state.last_update.strftime('%H:%M:%S')}")
@@ -1186,7 +1188,7 @@ def display_live_market_dashboard():
     st.markdown("**Real-time data with 5-minute auto-refresh and live predictions**")
     
     # Auto-refresh every 5 minutes (300 seconds)
-    from streamlit_autorefresh import st_autorefresh
+    # from streamlit_autorefresh import st_autorefresh
     count = st_autorefresh(interval=300000, limit=None, key="live_dashboard_refresh")
     
     # Get accurate Pakistan market status

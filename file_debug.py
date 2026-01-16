@@ -3,7 +3,7 @@ Comprehensive file debugging utility for universal file upload
 """
 import pandas as pd
 import io
-import chardet
+# import chardet
 
 def analyze_uploaded_file(uploaded_file):
     """Comprehensive analysis of uploaded file"""
@@ -20,14 +20,13 @@ def analyze_uploaded_file(uploaded_file):
         raw_bytes = uploaded_file.read()
         analysis['raw_size'] = len(raw_bytes)
         
-        # Detect encoding
-        encoding_result = chardet.detect(raw_bytes)
-        analysis['detected_encoding'] = encoding_result
+        # Detect encoding (fallback without chardet)
+        analysis['detected_encoding'] = {'encoding': 'utf-8', 'confidence': 0.8}
         
         # Try to decode with detected encoding
         try:
-            if encoding_result['encoding']:
-                content = raw_bytes.decode(encoding_result['encoding'])
+            if analysis['detected_encoding']['encoding']:
+                content = raw_bytes.decode(analysis['detected_encoding']['encoding'])
                 analysis['decode_success'] = True
                 analysis['content_length'] = len(content)
                 

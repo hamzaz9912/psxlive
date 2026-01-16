@@ -3,7 +3,7 @@ Simple and robust file reader for universal file upload
 """
 import pandas as pd
 import io
-import chardet
+# import chardet
 
 def read_any_file(uploaded_file):
     """
@@ -32,9 +32,8 @@ def read_any_file(uploaded_file):
             uploaded_file.seek(0)
             raw_content = uploaded_file.read()
             
-            # Detect encoding
-            encoding_result = chardet.detect(raw_content)
-            detected_encoding = encoding_result.get('encoding', 'utf-8')
+            # Detect encoding (fallback without chardet)
+            detected_encoding = 'utf-8'  # Default fallback
             
             # Decode content
             try:
