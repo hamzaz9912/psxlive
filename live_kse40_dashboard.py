@@ -170,7 +170,8 @@ class LiveKSE40Dashboard:
             'TOMCL': 'TOMCL Limited',
             'ZAL': 'ZAL Limited',
             'BFAGRO': 'BFAGRO Limited',
-            'FFL': 'FFL Limited'
+            'FFL': 'FFL Limited',
+            'CSAP': 'CSAP Limited'
         }
         
         # Current price estimates (EXPANDED with accurate PSX market prices for 80+ KSE-100 companies)
@@ -254,7 +255,8 @@ class LiveKSE40Dashboard:
             'TOMCL': 100.00,
             'ZAL': 100.00,
             'BFAGRO': 100.00,
-            'FFL': 100.00
+            'FFL': 100.00,
+            'CSAP': 8.00
         }
         
         self.session = requests.Session()
@@ -631,7 +633,7 @@ class LiveKSE40Dashboard:
             'Power & Energy': ['HUBC', 'KEL', 'KAPCO', 'LOTTE', 'NPL', 'SPWL', 'TSPL', 'ALTN'],
             'Chemicals': ['ICI', 'BERGER', 'SITARA', 'CPHL', 'BFBIO', 'IBLHL', 'GLAXO', 'SANOFI'],
             'Textiles': ['PAEL', 'BBFL', 'MUFGHAL', 'SPEL', 'KOSM', 'SLGL', 'ADAMS', 'JDWS', 'AGSML', 'MTL'],
-            'Additional': ['THCCL', 'GHNI', 'SAZEW', 'HALEON', 'NCPL', 'PKGP', 'SGPL', 'UNITY', 'NML', 'YOUW', 'KTML', 'PSX', 'HMB', 'DHPL', 'GHGL', 'DCR', 'ILP', 'ISL', 'HGFA', 'LCI', 'AGP', 'PABC', 'TGL', 'INIL', 'BNWM', 'SCBPL', 'SHIFA', 'PSEL', 'IBFL', 'FNEL', 'CEPB', 'HASCOL', 'TOMCL', 'ZAL', 'BFAGRO', 'FFL']
+            'Additional': ['THCCL', 'GHNI', 'SAZEW', 'HALEON', 'NCPL', 'PKGP', 'SGPL', 'UNITY', 'NML', 'YOUW', 'KTML', 'PSX', 'HMB', 'DHPL', 'GHGL', 'DCR', 'ILP', 'ISL', 'HGFA', 'LCI', 'AGP', 'PABC', 'TGL', 'INIL', 'BNWM', 'SCBPL', 'SHIFA', 'PSEL', 'IBFL', 'FNEL', 'CEPB', 'HASCOL', 'TOMCL', 'ZAL', 'BFAGRO', 'FFL', 'CSAP']
         }
     
     def display_live_dashboard(self):
