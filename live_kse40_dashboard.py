@@ -180,7 +180,7 @@ class LiveKSE40Dashboard:
             'HBL': 120.00, 'UBL': 375.00, 'MCB': 210.00, 'NBP': 35.00,
             'ABL': 125.00, 'BAFL': 45.00, 'MEBL': 180.00, 'BAHL': 85.00,
             'AKBL': 22.50, 'BOP': 6.80, 'FABL': 28.50, 'SMBL': 2.50,
-            'SNBL': 12.00, 'JSBL': 8.50, 'UBLTFC': 15.00, 'KSE100': 140153.24,
+            'SNBL': 12.00, 'JSBL': 8.50, 'UBLTFC': 15.00, 'KSE100': 188562.07,
 
             # Oil & Gas - Accurate current prices
             'OGDC': 105.00, 'PPL': 85.00, 'POL': 380.00, 'MARI': 1850.00,
