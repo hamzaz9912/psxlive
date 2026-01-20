@@ -177,24 +177,24 @@ class LiveKSE40Dashboard:
         # Current price estimates (EXPANDED with accurate PSX market prices for 80+ KSE-100 companies)
         self.price_estimates = {
             # Banking - Accurate current prices
-            'HBL': 120.00, 'UBL': 375.00, 'MCB': 210.00, 'NBP': 35.00,
+            'HBL': 363.00, 'UBL': 494.00, 'MCB': 210.00, 'NBP': 272.00,
             'ABL': 125.00, 'BAFL': 45.00, 'MEBL': 180.00, 'BAHL': 85.00,
             'AKBL': 22.50, 'BOP': 6.80, 'FABL': 28.50, 'SMBL': 2.50,
-            'SNBL': 12.00, 'JSBL': 8.50, 'UBLTFC': 15.00, 'KSE100': 188562.07,
+            'SNBL': 12.00, 'JSBL': 17.50, 'UBLTFC': 15.00, 'KSE100': 188562.07,
 
             # Oil & Gas - Accurate current prices
             'OGDC': 105.00, 'PPL': 85.00, 'POL': 380.00, 'MARI': 1850.00,
-            'PSO': 165.00, 'APL': 325.00, 'SNGP': 55.00, 'SSGC': 12.50,
+            'PSO': 165.00, 'APL': 587.05, 'SNGP': 55.00, 'SSGC': 12.50,
             'NRL': 220.00, 'ATRL': 180.00, 'PRL': 15.00, 'BYCO': 8.50,
 
             # Cement - Accurate current prices
             'LUCK': 680.00, 'DGKC': 85.00, 'MLCF': 35.00, 'PIOC': 145.00,
-            'KOHC': 180.00, 'ACPL': 95.00, 'FCCL': 18.50, 'CHCC': 120.00,
-            'POWER': 6.50, 'BWCL': 8.00,
+            'KOHC': 180.00, 'ACPL': 275.00, 'FCCL': 18.50, 'CHCC': 120.00,
+            'POWER': 6.50, 'BWCL': 528.00,
 
             # Fertilizer - Accurate current prices
             'FFC': 115.00, 'EFERT': 85.00, 'FFBL': 22.00, 'ENGRO': 320.00,
-            'FATIMA': 28.00, 'DAWOOD': 180.00, 'EFUL': 150.00, 'JGCL': 25.00,
+            'FATIMA': 28.00, 'DAWOOD': 180.00, 'EFUL': 150.00, 'JGCL': 82.65,
 
             # Technology & Communication - Accurate current prices
             'SYS': 1200.00, 'TRG': 18.50, 'NETSOL': 25.00, 'AIRLINK': 120.00,
@@ -206,7 +206,7 @@ class LiveKSE40Dashboard:
 
             # Food & Beverages - Accurate current prices
             'UNILEVER': 3800.00, 'NATF': 180.00, 'NESTLE': 8500.00,
-            'SHEZ': 180.00, 'ASC': 15.00, 'PREMA': 8.50,
+            'SHEZ': 180.00, 'ASC': 12.00, 'PREMA': 8.50,
 
             # Power & Energy - Accurate current prices
             'HUBC': 85.00, 'KEL': 2.80, 'KAPCO': 28.00, 'LOTTE': 22.00,
@@ -214,47 +214,47 @@ class LiveKSE40Dashboard:
 
             # Chemicals & Pharmaceuticals - Accurate current prices
             'ICI': 650.00, 'BERGER': 75.00, 'SITARA': 280.00, 'CPHL': 25.00,
-            'BFBIO': 85.00, 'IBLHL': 120.00, 'GLAXO': 120.00, 'SANOFI': 650.00,
+            'BFBIO': 85.00, 'IBLHL': 61.46, 'GLAXO': 120.00, 'SANOFI': 650.00,
 
             # Textiles & Miscellaneous - Accurate current prices
-            'PAEL': 18.00, 'BBFL': 5.50, 'MUFGHAL': 65.00, 'SPEL': 5.00,
-            'KOSM': 8.00, 'SLGL': 12.00, 'ADAMS': 35.00, 'JDWS': 180.00,
-            'AGSML': 8.50, 'MTL': 850.00,
-            'THCCL': 100.00,
+            'PAEL': 18.00, 'BBFL': 49.50, 'MUFGHAL': 65.00, 'SPEL': 55.00,
+            'KOSM': 8.00, 'SLGL': 21.00, 'ADAMS': 35.00, 'JDWS': 180.00,
+            'AGSML': 10.50, 'MTL': 850.00,
+            'THCCL': 77.00,
             'GHNI': 100.00,
             'SAZEW': 100.00,
             'HALEON': 100.00,
             'NCPL': 100.00,
-            'PKGP': 100.00,
-            'SGPL': 100.00,
+            'PKGP': 60.00,
+            'SGPL': 27.00,
             'UNITY': 100.00,
             'NML': 100.00,
             'YOUW': 100.00,
-            'KTML': 100.00,
-            'PSX': 100.00,
-            'HMB': 100.00,
-            'DHPL': 100.00,
+            'KTML': 67.08,
+            'PSX': 53.26,
+            'HMB': 118.75,
+            'DHPL': 33.64,
             'GHGL': 100.00,
-            'DCR': 100.00,
+            'DCR': 37.84,
             'ILP': 100.00,
             'ISL': 100.00,
-            'HGFA': 100.00,
-            'LCI': 100.00,
+            'HGFA': 18.21,
+            'LCI': 306.85,
             'AGP': 100.00,
-            'PABC': 100.00,
-            'TGL': 100.00,
+            'PABC': 124.85,
+            'TGL': 233.50,
             'INIL': 100.00,
-            'BNWM': 100.00,
-            'SCBPL': 100.00,
+            'BNWM':  69.59,
+            'SCBPL': 73.74,
             'SHIFA': 100.00,
-            'PSEL': 100.00,
-            'IBFL': 100.00,
-            'FNEL': 100.00,
-            'CEPB': 100.00,
+            'PSEL': 1001.70,
+            'IBFL': 256.83,
+            'FNEL': 18.25,
+            'CEPB': 37.48,
             'HASCOL': 100.00,
             'TOMCL': 100.00,
-            'ZAL': 100.00,
-            'BFAGRO': 100.00,
+            'ZAL': 66.00,
+            'BFAGRO': 41.00,
             'FFL': 100.00,
             'CSAP': 8.00
         }

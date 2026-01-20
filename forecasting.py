@@ -2,7 +2,7 @@ import pandas as pd
 import numpy as np
 from datetime import datetime, timedelta
 import streamlit as st
-from prophet import Prophet
+# from prophet import Prophet  # Commented out due to dependency issues
 import warnings
 warnings.filterwarnings('ignore')
 
@@ -29,70 +29,12 @@ class StockForecaster:
             return None
             
         try:
-            # Prepare data for Prophet
-            df_prophet = historical_data[['date', 'close']].copy()
-            df_prophet.columns = ['ds', 'y']
-            df_prophet['ds'] = pd.to_datetime(df_prophet['ds'])
-            
-            # Remove timezone information if present
-            if df_prophet['ds'].dt.tz is not None:
-                df_prophet['ds'] = df_prophet['ds'].dt.tz_localize(None)
-            
-            df_prophet = df_prophet.sort_values('ds').reset_index(drop=True)
-            
-            # Ensure we have enough data points
-            if len(df_prophet) < 10:
-                st.error("Insufficient data. Need at least 10 data points for forecasting.")
-                return None
-            
-            # Validate data quality
-            if df_prophet['y'].isna().any():
-                df_prophet = df_prophet.dropna()
-                if len(df_prophet) < 10:
-                    st.error("Insufficient valid data after removing missing values.")
-                    return None
-            
-            # Initialize and fit Prophet model
-            model = Prophet(
-                changepoint_prior_scale=0.05,  # Flexibility of trend changes
-                seasonality_prior_scale=10.0,  # Flexibility of seasonality
-                holidays_prior_scale=10.0,     # Flexibility of holiday effects
-                seasonality_mode='multiplicative',  # Better for financial data
-                interval_width=0.8,            # 80% confidence intervals
-                daily_seasonality='auto',      # Capture daily patterns
-                weekly_seasonality='auto',     # Capture weekly patterns
-                yearly_seasonality='auto'      # Auto-detect yearly patterns
-            )
-            
-            # Fit the model
-            model.fit(df_prophet)
-            
-            # Create future dataframe based on forecast type
-            if forecast_type in ['intraday', 'morning_session', 'afternoon_session'] or days_ahead == 0:
-                # For same-day forecasting, predict next few hours/end of day
-                future = model.make_future_dataframe(periods=1, freq='D')
-            else:
-                # For multi-day forecasting - ensure days_ahead is integer
-                periods = max(1, int(days_ahead))
-                future = model.make_future_dataframe(periods=periods, freq='D')
-            
-            # Make predictions
-            forecast = model.predict(future)
-            
-            # Return only the forecast period
-            if days_ahead == 0:
-                return forecast.tail(1)
-            else:
-                periods = max(1, int(days_ahead))
-                return forecast.tail(periods)
-                
+            # Use linear trend forecast as primary method (Prophet disabled)
+            return self._linear_trend_forecast(historical_data, int(days_ahead))
+
         except Exception as e:
             st.error(f"Forecasting failed: {str(e)}")
-            # Try with ensemble approach as fallback
-            try:
-                return self._linear_trend_forecast(historical_data, int(days_ahead))
-            except:
-                return None
+            return None
     
     def forecast_with_multiple_models(self, historical_data, days_ahead=1):
         """
